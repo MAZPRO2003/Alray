@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "775183573814",
+    "project_id": "alray-prod",
+    "storage_bucket": "alray-prod.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:775183573814:android:7cf579945f64a578a2c997",
+        "android_client_info": {
+          "package_name": "com.example.alray_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAvBdKQdbAucMcJBRzOwHzQYt_DzwHUaxI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

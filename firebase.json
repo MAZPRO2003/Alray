@@ -1,0 +1,29 @@
+{
+    "firestore": {
+        "rules": "firestore.rules"
+    },
+    "projects": {
+        "default": "alray-dev",
+        "dev": "alray-dev",
+        "prod": "alray-prod"
+    },
+    "flutter": {
+        "platforms": {
+            "android": {
+                "default": {
+                    "projectId": "alray-prod",
+                    "appId": "1:775183573814:android:7cf579945f64a578a2c997",
+                    "fileOutput": "android/app/google-services.json"
+                }
+            },
+            "dart": {
+                "lib/firebase_options.dart": {
+                    "projectId": "alray-prod",
+                    "configurations": {
+                        "android": "1:775183573814:android:7cf579945f64a578a2c997"
+                    }
+                }
+            }
+        }
+    }
+}

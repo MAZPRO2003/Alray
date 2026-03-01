@@ -1,17 +1,50 @@
-# alray_app
+# Alray App - Real Estate Budget Management
 
-A new Flutter project.
+Alray is a modern, feature-rich real estate budget management application built with Flutter and Firebase. It allows users to track project budgets, manage expenses, record revenues, and handle team contacts seamlessly.
 
-## Getting Started
+## 🚀 Key Features
 
-This project is a starting point for a Flutter application.
+* **Secure Authentication**: User login and sign-up powered by Firebase Authentication with proper routing and state persistence.
+* **Projects Dashboard**: 
+  * Create, view, and manage multiple real estate projects.
+  * Define project budgets and track remaining balances.
+  * View high-level summaries including all-time expenses, monthly returns, and yearly returns.
+* **Detailed Transaction Tracking**: Add categorised expenses and revenues to specific projects.
+* **Team Contacts Management**: 
+  * Add and manage team members and contractors.
+  * Direct dialing support right within the app.
+  * Track team-related calls and interactions.
+* **Modern UI/UX**: 
+  * Premium, glassmorphism-inspired design system.
+  * Smooth animations using `flutter_animate`.
+  * Proper Indian Currency formatting (₹ Lakhs and Crores).
+* **Cloud Sync**: Real-time data storage and synchronization using Firebase Cloud Firestore.
 
-A few resources to get you started if this is your first Flutter project:
+## 🛠️ Tech Stack & Architecture
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+* **Framework**: Flutter (Dart)
+* **State Management**: `provider` (MultiProvider with `ChangeNotifierProxyProvider`)
+* **Navigation**: `go_router` (Stateful nested routing with Authentication guards)
+* **Backend**: Firebase (Authentication, Cloud Firestore)
+* **Environments**: Configured with Dev and Prod Android flavors using separate Firebase environments (`alray-dev` / `alray-prod`).
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 📁 Project Structure highlights
+* `lib/models/`: Data classes for `Project`, `Expense`, `Revenue`, `Contact`.
+* `lib/providers/`: State managers (`AuthProvider`, `BudgetProvider`, `ContactsProvider`).
+* `lib/screens/`: App screens including `DashboardScreen`, `LoginScreen`, `ProjectDetailsScreen`, etc.
+* `lib/routes/`: Centralized GoRouter configuration handling auth redirects.
+* `lib/services/`: Background & external integrations (`CallService`).
+
+## ⚙️ Running the App
+
+The application uses Android Flavors to separate Development and Production environments.
+
+**Development:**
+```bash
+flutter run --flavor dev -t lib/main_dev.dart
+```
+
+**Production:**
+```bash
+flutter run --flavor prod -t lib/main_prod.dart
+```

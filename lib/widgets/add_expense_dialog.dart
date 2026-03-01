@@ -17,9 +17,15 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
   final _formKey = GlobalKey<FormState>();
   final _descController = TextEditingController();
   final _amountController = TextEditingController();
-  // Default to today so the user never has to pick a date to submit.
+  final _customCategoryController = TextEditingController();
+  final _quantityController = TextEditingController();
+  final _unitController = TextEditingController();
+  final _materialTypeController = TextEditingController();
+  final _workerNameController = TextEditingController();
+  final _vendorNameController = TextEditingController();
+  // Default to today
   DateTime _selectedDate = DateTime.now();
-  ExpenseCategory _selectedCategory = ExpenseCategory.vendor;
+  ExpenseCategory _selectedCategory = ExpenseCategory.contractor;
   bool _isLoading = false;
 
   void _presentDatePicker() async {
@@ -41,6 +47,12 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
 
     final enteredDesc = _descController.text.trim();
     final enteredAmount = double.tryParse(_amountController.text);
+    final enteredCustomCategory = _customCategoryController.text.trim();
+    final enteredQuantity = double.tryParse(_quantityController.text);
+    final enteredUnit = _unitController.text.trim();
+    final enteredMaterialType = _materialTypeController.text.trim();
+    final enteredWorkerName = _workerNameController.text.trim();
+    final enteredVendorName = _vendorNameController.text.trim();
 
     if (enteredAmount == null || enteredAmount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -55,6 +67,22 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
       amount: enteredAmount,
       date: _selectedDate,
       category: _selectedCategory,
+      customCategoryName: _selectedCategory == ExpenseCategory.other
+          ? enteredCustomCategory
+          : null,
+      quantity: _selectedCategory == ExpenseCategory.material
+          ? enteredQuantity
+          : null,
+      unit: _selectedCategory == ExpenseCategory.material ? enteredUnit : null,
+      materialType: _selectedCategory == ExpenseCategory.material
+          ? enteredMaterialType
+          : null,
+      workerName: _selectedCategory == ExpenseCategory.contractor
+          ? enteredWorkerName
+          : null,
+      vendorName: _selectedCategory == ExpenseCategory.material
+          ? enteredVendorName
+          : null,
     );
 
     setState(() => _isLoading = true);
@@ -78,6 +106,12 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
   void dispose() {
     _descController.dispose();
     _amountController.dispose();
+    _customCategoryController.dispose();
+    _quantityController.dispose();
+    _unitController.dispose();
+    _materialTypeController.dispose();
+    _workerNameController.dispose();
+    _vendorNameController.dispose();
     super.dispose();
   }
 
@@ -105,21 +139,106 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 24),
-                TextFormField(
-                  controller: _descController,
-                  decoration: const InputDecoration(labelText: 'Description'),
-                  textCapitalization: TextCapitalization.sentences,
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Description is required'
-                      : null,
+                const SizedBox(height: 32),
+
+                // 1. Category Selection
+                DropdownButtonFormField<ExpenseCategory>(
+                  value: _selectedCategory,
+                  decoration: const InputDecoration(
+                    labelText: 'Category',
+                    prefixIcon: Icon(Icons.category_outlined),
+                  ),
+                  items: ExpenseCategory.values.map((category) {
+                    String label = category.name.toUpperCase();
+                    if (category == ExpenseCategory.contractor)
+                      label = 'WORKERS';
+                    if (category == ExpenseCategory.material)
+                      label = 'MATERIAL';
+                    if (category == ExpenseCategory.other) label = 'CUSTOM';
+
+                    return DropdownMenuItem(
+                      value: category,
+                      child: Text(label),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() {
+                      _selectedCategory = value;
+                    });
+                  },
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
+
+                // 2. Specialized Details
+                if (_selectedCategory == ExpenseCategory.material) ...[
+                  TextFormField(
+                    controller: _materialTypeController,
+                    decoration: const InputDecoration(
+                      labelText: 'Material Name',
+                      hintText: 'e.g. Cement, Steel, Sand',
+                      prefixIcon: Icon(Icons.inventory_2_outlined),
+                    ),
+                    textCapitalization: TextCapitalization.words,
+                    validator: (v) =>
+                        (_selectedCategory == ExpenseCategory.material &&
+                            (v == null || v.trim().isEmpty))
+                        ? 'Material name is required'
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _vendorNameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Vendor Name',
+                      hintText: 'Where was this bought?',
+                      prefixIcon: Icon(Icons.store_outlined),
+                    ),
+                    textCapitalization: TextCapitalization.words,
+                  ),
+                  const SizedBox(height: 20),
+                ],
+                if (_selectedCategory == ExpenseCategory.contractor) ...[
+                  TextFormField(
+                    controller: _workerNameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Contractor / Worker Name',
+                      prefixIcon: Icon(Icons.person_outline),
+                    ),
+                    textCapitalization: TextCapitalization.words,
+                    validator: (v) =>
+                        (_selectedCategory == ExpenseCategory.contractor &&
+                            (v == null || v.trim().isEmpty))
+                        ? 'Worker name is required'
+                        : null,
+                  ),
+                  const SizedBox(height: 20),
+                ],
+                if (_selectedCategory == ExpenseCategory.other) ...[
+                  TextFormField(
+                    controller: _customCategoryController,
+                    decoration: const InputDecoration(
+                      labelText: 'Name',
+                      hintText: 'Enter Name',
+                      prefixIcon: Icon(Icons.label_outline),
+                    ),
+                    textCapitalization: TextCapitalization.words,
+                    validator: (v) =>
+                        (_selectedCategory == ExpenseCategory.other &&
+                            (v == null || v.trim().isEmpty))
+                        ? 'Category name is required'
+                        : null,
+                  ),
+                  const SizedBox(height: 20),
+                ],
+
+                // 3. Amount & Measurement
                 TextFormField(
                   controller: _amountController,
                   decoration: const InputDecoration(
                     labelText: 'Amount (₹)',
                     hintText: 'e.g. 50000',
+                    prefixIcon: Icon(Icons.currency_rupee),
                   ),
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
@@ -132,51 +251,116 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: Row(
+                if (_selectedCategory == ExpenseCategory.material) ...[
+                  const SizedBox(height: 16),
+                  Row(
                     children: [
                       Expanded(
-                        child: Text(
-                          'Date: ${DateFormat.yMMMd().format(_selectedDate)}',
-                          style: const TextStyle(color: Colors.black87),
+                        flex: 2,
+                        child: TextFormField(
+                          controller: _quantityController,
+                          decoration: const InputDecoration(
+                            labelText: 'Quantity',
+                            prefixIcon: Icon(Icons.numbers),
+                          ),
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          validator: (v) =>
+                              (_selectedCategory == ExpenseCategory.material &&
+                                  (v == null ||
+                                      double.tryParse(v) == null ||
+                                      double.parse(v) <= 0))
+                              ? 'Enter qty'
+                              : null,
                         ),
                       ),
-                      TextButton.icon(
-                        onPressed: _presentDatePicker,
-                        icon: const Icon(Icons.calendar_month),
-                        label: const Text('Change'),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 3,
+                        child: TextFormField(
+                          controller: _unitController,
+                          decoration: const InputDecoration(
+                            labelText: 'Unit',
+                            hintText: 'Bags, Nos, etc.',
+                          ),
+                          textCapitalization: TextCapitalization.words,
+                          validator: (v) =>
+                              (_selectedCategory == ExpenseCategory.material &&
+                                  (v == null || v.trim().isEmpty))
+                              ? 'Enter unit'
+                              : null,
+                        ),
                       ),
                     ],
                   ),
+                ],
+                const SizedBox(height: 20),
+
+                // 4. Supplementary Info
+                TextFormField(
+                  controller: _descController,
+                  decoration: const InputDecoration(
+                    labelText: 'Description',
+                    prefixIcon: Icon(Icons.description_outlined),
+                  ),
+                  textCapitalization: TextCapitalization.sentences,
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Description is required'
+                      : null,
                 ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<ExpenseCategory>(
-                  initialValue: _selectedCategory,
-                  decoration: const InputDecoration(labelText: 'Category'),
-                  items: ExpenseCategory.values.map((category) {
-                    return DropdownMenuItem(
-                      value: category,
-                      child: Text(category.name.toUpperCase()),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setState(() {
-                      _selectedCategory = value;
-                    });
-                  },
+                const SizedBox(height: 20),
+                InkWell(
+                  onTap: _presentDatePicker,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_month,
+                          size: 20,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Transaction Date',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                              Text(
+                                DateFormat(
+                                  'EEEE, d MMMM yyyy',
+                                ).format(_selectedDate),
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.edit, size: 16, color: Colors.grey),
+                      ],
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 24),
+
+                const SizedBox(height: 32),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [

@@ -17,6 +17,7 @@ class ContactsScreen extends StatefulWidget {
 
 class _ContactsScreenState extends State<ContactsScreen> {
   String _searchQuery = '';
+  String _selectedRole = 'All';
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -79,12 +80,28 @@ class _ContactsScreenState extends State<ContactsScreen> {
         builder: (context, contactsProvider, child) {
           final allContacts = contactsProvider.contacts;
 
-          // Filter by Search Query
+          // Extract unique roles
+          final roles = [
+            'All',
+            ...allContacts.map((c) => c.role).toSet().toList()..sort(),
+          ];
+
+          // Filter by Search Query AND Role
           final filteredContacts = allContacts.where((contact) {
-            final query = _searchQuery.toLowerCase();
-            return contact.name.toLowerCase().contains(query) ||
-                contact.role.toLowerCase().contains(query) ||
-                contact.phoneNumber.contains(query);
+            final matchesQuery =
+                _searchQuery.isEmpty ||
+                contact.name.toLowerCase().contains(
+                  _searchQuery.toLowerCase(),
+                ) ||
+                contact.role.toLowerCase().contains(
+                  _searchQuery.toLowerCase(),
+                ) ||
+                contact.phoneNumber.contains(_searchQuery);
+
+            final matchesRole =
+                _selectedRole == 'All' || contact.role == _selectedRole;
+
+            return matchesQuery && matchesRole;
           }).toList();
 
           // Sort by Call Count (Descending)
@@ -94,7 +111,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
             children: [
               // Search Bar
               Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                 child: TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
@@ -125,6 +142,60 @@ class _ContactsScreenState extends State<ContactsScreen> {
                   },
                 ),
               ),
+
+              // Role Filter Bar
+              if (roles.length > 1)
+                SizedBox(
+                  height: 50,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: roles.length,
+                    itemBuilder: (ctx, index) {
+                      final role = roles[index];
+                      final isSelected = _selectedRole == role;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: FilterChip(
+                          label: Text(role),
+                          selected: isSelected,
+                          onSelected: (selected) {
+                            setState(() {
+                              _selectedRole = role;
+                            });
+                          },
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.surfaceVariant.withOpacity(0.3),
+                          selectedColor: Theme.of(
+                            context,
+                          ).colorScheme.primaryContainer,
+                          checkmarkColor: Theme.of(context).colorScheme.primary,
+                          labelStyle: TextStyle(
+                            color: isSelected
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(
+                              color: isSelected
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Colors.transparent,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+              const SizedBox(height: 8),
 
               // Filtered / Grouped List
               Expanded(
@@ -394,8 +465,45 @@ class _ContactsScreenState extends State<ContactsScreen> {
                                               color: Colors.red,
                                               size: 22,
                                             ),
-                                            onPressed: () => contactsProvider
-                                                .deleteContact(contact.id),
+                                            onPressed: () {
+                                              showDialog(
+                                                context: context,
+                                                builder: (ctx) => AlertDialog(
+                                                  title: const Text(
+                                                    'Delete Contact?',
+                                                  ),
+                                                  content: Text(
+                                                    'Are you sure you want to delete ${contact.name}? This action cannot be undone.',
+                                                  ),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed: () =>
+                                                          Navigator.of(
+                                                            ctx,
+                                                          ).pop(),
+                                                      child: const Text(
+                                                        'Cancel',
+                                                      ),
+                                                    ),
+                                                    TextButton(
+                                                      onPressed: () {
+                                                        contactsProvider
+                                                            .deleteContact(
+                                                              contact.id,
+                                                            );
+                                                        Navigator.of(ctx).pop();
+                                                      },
+                                                      child: const Text(
+                                                        'Delete',
+                                                        style: TextStyle(
+                                                          color: Colors.red,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                            },
                                             tooltip: 'Delete Contact',
                                           ),
                                         ],

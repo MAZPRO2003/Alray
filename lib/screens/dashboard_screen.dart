@@ -250,8 +250,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                               color: Colors.red,
                                             ),
                                             onPressed: () {
-                                              budgetProvider.removeProject(
-                                                project.id,
+                                              showDialog(
+                                                context: context,
+                                                builder: (ctx) => AlertDialog(
+                                                  title: const Text(
+                                                    'Delete Project?',
+                                                  ),
+                                                  content: const Text(
+                                                    'Are you sure you want to delete this project? This will also delete all associated expenses and revenue. This action cannot be undone.',
+                                                  ),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed: () =>
+                                                          Navigator.of(
+                                                            ctx,
+                                                          ).pop(),
+                                                      child: const Text(
+                                                        'Cancel',
+                                                      ),
+                                                    ),
+                                                    TextButton(
+                                                      onPressed: () {
+                                                        budgetProvider
+                                                            .removeProject(
+                                                              project.id,
+                                                            );
+                                                        Navigator.of(ctx).pop();
+                                                      },
+                                                      child: const Text(
+                                                        'Delete',
+                                                        style: TextStyle(
+                                                          color: Colors.red,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
                                               );
                                             },
                                           ),

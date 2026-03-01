@@ -6,17 +6,31 @@ class ContactsProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   List<Contact> _contacts = [];
+  String? _userId;
 
   List<Contact> get contacts => [..._contacts];
+
+  void updateUserId(String? uid) {
+    if (_userId != uid) {
+      _userId = uid;
+      _contacts = [];
+      if (uid != null) {
+        fetchContacts();
+      }
+      notifyListeners();
+    }
+  }
 
   int get totalTeamCalls {
     return _contacts.fold(0, (sum, c) => sum + c.callCount);
   }
 
   Future<void> fetchContacts() async {
+    if (_userId == null) return;
     try {
       final snapshot = await _firestore
           .collection('contacts')
+          .where('userId', isEqualTo: _userId)
           .orderBy('name')
           .get();
       _contacts = snapshot.docs
@@ -29,8 +43,12 @@ class ContactsProvider with ChangeNotifier {
   }
 
   Future<void> addContact(Contact contact) async {
+    if (_userId == null) return;
     try {
       final newContactRef = _firestore.collection('contacts').doc();
+      final data = contact.toFirestore();
+      data['userId'] = _userId;
+
       final contactToAdd = Contact(
         id: newContactRef.id,
         name: contact.name,
@@ -39,7 +57,7 @@ class ContactsProvider with ChangeNotifier {
         notes: contact.notes,
       );
 
-      await newContactRef.set(contactToAdd.toFirestore());
+      await newContactRef.set(data);
 
       _contacts.add(contactToAdd);
 

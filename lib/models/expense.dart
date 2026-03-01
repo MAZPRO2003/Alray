@@ -2,7 +2,7 @@ import 'package:uuid/uuid.dart';
 
 const uuid = Uuid();
 
-enum ExpenseCategory { vendor, contractor, other }
+enum ExpenseCategory { contractor, material, other }
 
 class Expense {
   final String id;
@@ -11,6 +11,12 @@ class Expense {
   final double amount;
   final DateTime date;
   final ExpenseCategory category;
+  final String? customCategoryName;
+  final double? quantity;
+  final String? unit;
+  final String? materialType;
+  final String? workerName;
+  final String? vendorName;
 
   Expense({
     String? id,
@@ -19,6 +25,12 @@ class Expense {
     required this.amount,
     required this.date,
     required this.category,
+    this.customCategoryName,
+    this.quantity,
+    this.unit,
+    this.materialType,
+    this.workerName,
+    this.vendorName,
   }) : id = id ?? uuid.v4();
 
   factory Expense.fromJson(Map<String, dynamic> json, String documentId) {
@@ -34,6 +46,12 @@ class Expense {
         (e) => e.name == json['category'],
         orElse: () => ExpenseCategory.other,
       ),
+      customCategoryName: json['customCategoryName'] as String?,
+      quantity: (json['quantity'] as num?)?.toDouble(),
+      unit: json['unit'] as String?,
+      materialType: json['materialType'] as String?,
+      workerName: json['workerName'] as String?,
+      vendorName: json['vendorName'] as String?,
     );
   }
 
@@ -44,17 +62,36 @@ class Expense {
       'amount': amount,
       'date': date.toIso8601String(),
       'category': category.name,
+      if (customCategoryName != null) 'customCategoryName': customCategoryName,
+      if (quantity != null) 'quantity': quantity,
+      if (unit != null) 'unit': unit,
+      if (materialType != null) 'materialType': materialType,
+      if (workerName != null) 'workerName': workerName,
+      if (vendorName != null) 'vendorName': vendorName,
     };
   }
 
   String get formattedCategory {
-    switch (category) {
-      case ExpenseCategory.vendor:
-        return 'Vendor';
-      case ExpenseCategory.contractor:
-        return 'Contractor';
-      case ExpenseCategory.other:
-        return 'Other';
+    if (category == ExpenseCategory.material) {
+      if (vendorName != null && vendorName!.isNotEmpty) {
+        return 'Vendor: $vendorName';
+      }
+      if (materialType != null && materialType!.isNotEmpty) {
+        return materialType!;
+      }
+      return 'Material';
     }
+    if (category == ExpenseCategory.contractor) {
+      if (workerName != null && workerName!.isNotEmpty) {
+        return 'Worker: $workerName';
+      }
+      return 'Workers';
+    }
+    if (category == ExpenseCategory.other &&
+        customCategoryName != null &&
+        customCategoryName!.isNotEmpty) {
+      return customCategoryName!;
+    }
+    return 'Custom';
   }
 }

@@ -5,7 +5,9 @@ import 'package:alray_app/models/revenue.dart';
 import 'package:intl/intl.dart';
 
 class AddRevenueDialog extends StatefulWidget {
-  const AddRevenueDialog({super.key});
+  final String? projectId;
+
+  const AddRevenueDialog({super.key, this.projectId});
 
   @override
   State<AddRevenueDialog> createState() => _AddRevenueDialogState();
@@ -15,10 +17,17 @@ class _AddRevenueDialogState extends State<AddRevenueDialog> {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
   final _descriptionController = TextEditingController();
+  String? _selectedProjectId;
 
-  // Default to today so the user never has to pick a date to save.
+  // Default to today
   DateTime _selectedDate = DateTime.now();
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedProjectId = widget.projectId;
+  }
 
   Future<void> _submitData() async {
     if (!_formKey.currentState!.validate()) return;
@@ -33,6 +42,7 @@ class _AddRevenueDialogState extends State<AddRevenueDialog> {
 
     final newRevenue = Revenue(
       id: '', // Firestore will assign the real ID
+      projectId: _selectedProjectId ?? '',
       amount: enteredAmount,
       description: _descriptionController.text.trim(),
       date: _selectedDate,
@@ -76,6 +86,8 @@ class _AddRevenueDialogState extends State<AddRevenueDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final projects = Provider.of<BudgetProvider>(context).projects;
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: SingleChildScrollView(
@@ -99,9 +111,33 @@ class _AddRevenueDialogState extends State<AddRevenueDialog> {
                   ),
                 ),
                 const SizedBox(height: 24),
+
+                // Project Selection (if not pre-selected)
+                DropdownButtonFormField<String?>(
+                  value: _selectedProjectId,
+                  decoration: const InputDecoration(
+                    labelText: 'Project (Optional)',
+                    prefixIcon: Icon(Icons.business_center_outlined),
+                  ),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('General'),
+                    ),
+                    ...projects.map(
+                      (p) => DropdownMenuItem(value: p.id, child: Text(p.name)),
+                    ),
+                  ],
+                  onChanged: widget.projectId != null
+                      ? null // Disable if pre-filled
+                      : (val) => setState(() => _selectedProjectId = val),
+                ),
+                const SizedBox(height: 16),
+
                 TextFormField(
                   decoration: const InputDecoration(
-                    labelText: 'Description (e.g., Client Payment)',
+                    labelText: 'Description',
+                    prefixIcon: Icon(Icons.description_outlined),
                   ),
                   controller: _descriptionController,
                   textCapitalization: TextCapitalization.sentences,
@@ -114,6 +150,7 @@ class _AddRevenueDialogState extends State<AddRevenueDialog> {
                   decoration: const InputDecoration(
                     labelText: 'Amount (₹)',
                     hintText: 'e.g. 100000',
+                    prefixIcon: Icon(Icons.currency_rupee),
                   ),
                   controller: _amountController,
                   keyboardType: const TextInputType.numberWithOptions(
@@ -129,7 +166,6 @@ class _AddRevenueDialogState extends State<AddRevenueDialog> {
                   },
                 ),
                 const SizedBox(height: 16),
-                // Date picker row — defaults to today, always valid
                 InkWell(
                   onTap: _presentDatePicker,
                   borderRadius: BorderRadius.circular(12),
@@ -145,17 +181,18 @@ class _AddRevenueDialogState extends State<AddRevenueDialog> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.calendar_month, size: 20),
+                        const Icon(
+                          Icons.calendar_month,
+                          size: 20,
+                          color: Colors.blue,
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             'Date: ${DateFormat.yMMMd().format(_selectedDate)}',
                           ),
                         ),
-                        const Text(
-                          'Change',
-                          style: TextStyle(color: Colors.blue),
-                        ),
+                        const Icon(Icons.edit, size: 16, color: Colors.grey),
                       ],
                     ),
                   ),

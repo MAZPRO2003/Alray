@@ -86,7 +86,7 @@ class CallService {
         if (response.payload != null) {
           debugPrint('Notification tapped, navigating to ${response.payload}');
           // Route the foreground app to the requested screen
-          appRouter.go(response.payload!);
+          appRouter?.go(response.payload!);
         }
       },
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:alray_app/providers/budget_provider.dart';
+import 'package:alray_app/providers/auth_provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:alray_app/routes/app_router.dart';
 import 'package:alray_app/firebase_options.dart';
@@ -9,6 +10,7 @@ import 'package:alray_app/services/call_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:alray_app/app_config.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,16 +38,43 @@ void main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late final AuthProvider _authProvider;
+  late final GoRouter _router;
+
+  @override
+  void initState() {
+    super.initState();
+    _authProvider = AuthProvider();
+    _router = createAppRouter(_authProvider);
+  }
+
+  @override
+  void dispose() {
+    _authProvider.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => BudgetProvider()),
-        ChangeNotifierProvider(
-          create: (_) => ContactsProvider()..fetchContacts(),
+        ChangeNotifierProvider.value(value: _authProvider),
+        ChangeNotifierProxyProvider<AuthProvider, BudgetProvider>(
+          create: (_) => BudgetProvider(),
+          update: (_, auth, budget) => budget!..updateUserId(auth.user?.uid),
+        ),
+        ChangeNotifierProxyProvider<AuthProvider, ContactsProvider>(
+          create: (_) => ContactsProvider(),
+          update: (_, auth, contacts) =>
+              contacts!..updateUserId(auth.user?.uid),
         ),
       ],
       child: MaterialApp.router(
@@ -133,7 +162,7 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-        routerConfig: appRouter,
+        routerConfig: _router,
       ),
     );
   }

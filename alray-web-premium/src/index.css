@@ -41,8 +41,11 @@
     box-sizing: border-box;
 }
 
-html {
-    scroll-behavior: smooth;
+html,
+body,
+#root {
+    overflow-x: hidden;
+    width: 100%;
 }
 
 body {
@@ -386,10 +389,11 @@ img {
 /* Hero Enhancements */
 .hero-content {
     background: rgba(10, 25, 47, 0.4);
-    padding: 3rem;
+    padding: 3rem 2rem;
     border-radius: 20px;
     backdrop-filter: blur(8px);
     border: 1px solid rgba(255, 255, 255, 0.1);
+    width: 100%;
 }
 
 .hero h1 {
@@ -499,6 +503,12 @@ img {
     border: 3px solid var(--color-primary);
     border-radius: 8px;
     z-index: -1;
+}
+
+@media (max-width: 768px) {
+    .image-card::before {
+        display: none;
+    }
 }
 
 /* Vision / Mission Cards */
@@ -946,12 +956,14 @@ footer {
     }
 
     .stats-container {
-        grid-template-columns: 1fr;
+        display: flex;
+        flex-direction: column;
         gap: 1.5rem;
     }
 
     .stat-box {
-        padding: 1.5rem;
+        padding: 1rem 0;
+        text-align: center;
     }
 
     .process-grid {

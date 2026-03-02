@@ -50,12 +50,17 @@ class ContactDetailsScreen extends StatelessWidget {
   void _showAddNoteDialog(
     BuildContext context,
     String id,
-    String name, [
+    String name,
+    bool isCustomer, [
     String? currentNote,
   ]) {
     showDialog(
       context: context,
-      builder: (ctx) => AddContactNoteDialog(contactId: id, contactName: name),
+      builder: (ctx) => AddContactNoteDialog(
+        contactId: id,
+        contactName: name,
+        isCustomer: isCustomer,
+      ),
     );
   }
 
@@ -259,12 +264,15 @@ class ContactDetailsScreen extends StatelessWidget {
                     ),
                     _ActionButton(
                       icon: Icons.note_alt_outlined,
-                      label: 'Notes',
+                      label: contact.role == 'Customer'
+                          ? 'Description'
+                          : 'Notes',
                       color: Colors.blue,
                       onPressed: () => _showAddNoteDialog(
                         context,
                         contact.id,
                         contact.name,
+                        contact.role == 'Customer',
                         contact.callNotes,
                       ),
                     ),
@@ -308,21 +316,29 @@ class ContactDetailsScreen extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Padding(
-                      padding: EdgeInsets.only(left: 8.0),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8.0),
                       child: Text(
-                        'Notes',
-                        style: TextStyle(
+                        contact.role == 'Customer' ? 'Description' : 'Notes',
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
                     TextButton.icon(
-                      onPressed: () =>
-                          _showAddNoteDialog(context, contact.id, contact.name),
+                      onPressed: () => _showAddNoteDialog(
+                        context,
+                        contact.id,
+                        contact.name,
+                        contact.role == 'Customer',
+                      ),
                       icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Add Note'),
+                      label: Text(
+                        contact.role == 'Customer'
+                            ? 'Add Description'
+                            : 'Add Note',
+                      ),
                     ),
                   ],
                 ),
@@ -355,12 +371,14 @@ class ContactDetailsScreen extends StatelessWidget {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        child: const Padding(
-                          padding: EdgeInsets.all(20),
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
                           child: Center(
                             child: Text(
-                              'No notes yet. Tap \'Add Note\' to write one.',
-                              style: TextStyle(
+                              contact.role == 'Customer'
+                                  ? 'No description yet. Tap \'Add Description\' to write one.'
+                                  : 'No notes yet. Tap \'Add Note\' to write one.',
+                              style: const TextStyle(
                                 color: Colors.grey,
                                 fontSize: 14,
                               ),
@@ -447,7 +465,13 @@ class ContactDetailsScreen extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
-                                  note.text,
+                                  note.text.replaceAll(
+                                    RegExp(
+                                      r'Web Inquiry Received:\s*',
+                                      caseSensitive: false,
+                                    ),
+                                    'Description: ',
+                                  ),
                                   style: const TextStyle(
                                     fontSize: 14,
                                     height: 1.5,

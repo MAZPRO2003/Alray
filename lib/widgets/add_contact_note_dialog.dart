@@ -5,6 +5,7 @@ import 'package:alray_app/providers/contacts_provider.dart';
 class AddContactNoteDialog extends StatefulWidget {
   final String contactId;
   final String contactName;
+  final bool isCustomer;
   // initialNote kept for compatibility — not used in new flow
   final String? initialNote;
 
@@ -12,6 +13,7 @@ class AddContactNoteDialog extends StatefulWidget {
     super.key,
     required this.contactId,
     required this.contactName,
+    this.isCustomer = false,
     this.initialNote,
   });
 
@@ -89,7 +91,7 @@ class _AddContactNoteDialogState extends State<AddContactNoteDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Add Note',
+                          widget.isCustomer ? 'Add Description' : 'Add Note',
                           style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(fontWeight: FontWeight.bold),
                         ),
@@ -113,7 +115,9 @@ class _AddContactNoteDialogState extends State<AddContactNoteDialog> {
                 maxLines: 4,
                 autofocus: true,
                 decoration: InputDecoration(
-                  hintText: 'Write your note here...',
+                  hintText: widget.isCustomer
+                      ? 'Write your description here...'
+                      : 'Write your note here...',
                   filled: true,
                   fillColor: Colors.grey.shade50,
                   border: OutlineInputBorder(
@@ -147,7 +151,9 @@ class _AddContactNoteDialogState extends State<AddContactNoteDialog> {
                   ElevatedButton.icon(
                     onPressed: _submitNote,
                     icon: const Icon(Icons.save_outlined, size: 18),
-                    label: const Text('Save Note'),
+                    label: Text(
+                      widget.isCustomer ? 'Save Description' : 'Save Note',
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colorScheme.primary,
                       foregroundColor: Colors.white,

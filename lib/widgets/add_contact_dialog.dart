@@ -17,27 +17,19 @@ class _AddContactDialogState extends State<AddContactDialog> {
   final _nameController = TextEditingController();
   final _roleController = TextEditingController();
   final _phoneController = TextEditingController();
+  String _contactType = 'Worker';
 
   Future<void> _pickExternalContact() async {
-    // 1. Check and request Contacts OS permission
     if (await Permission.contacts.request().isGranted) {
-      // 2. Open Native Android/iOS Contact Picker
       final contact = await FlutterContacts.openExternalPick();
-
       if (contact != null) {
-        // Fetch full details of the picked contact to get phone numbers
         final fullContact = await FlutterContacts.getContact(contact.id);
-
         if (fullContact != null) {
           setState(() {
             _nameController.text = fullContact.displayName;
-            // Use the first available phone number, or leave empty if none
             if (fullContact.phones.isNotEmpty) {
-              // Clean the number from non-digits for validation
               String rawPhone = fullContact.phones.first.number;
               String cleanDigits = rawPhone.replaceAll(RegExp(r'[^0-9]'), '');
-
-              // If it's more than 10 digits, take the last 10 (strips country code)
               if (cleanDigits.length > 10) {
                 _phoneController.text = cleanDigits.substring(
                   cleanDigits.length - 10,
@@ -52,11 +44,7 @@ class _AddContactDialogState extends State<AddContactDialog> {
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Contacts permission is required to use this feature.',
-            ),
-          ),
+          const SnackBar(content: Text('Contacts permission is required.')),
         );
       }
     }
@@ -66,11 +54,13 @@ class _AddContactDialogState extends State<AddContactDialog> {
     if (!_formKey.currentState!.validate()) return;
 
     final enteredName = _nameController.text.trim();
-    final enteredRole = _roleController.text.trim();
+    final enteredRole = _contactType == 'Customer'
+        ? 'Customer'
+        : _roleController.text.trim();
     final enteredPhone = _phoneController.text.trim();
 
     final newContact = app_model.Contact(
-      id: '', // Handled by Firestore
+      id: '',
       name: enteredName,
       role: enteredRole,
       phoneNumber: enteredPhone,
@@ -81,12 +71,9 @@ class _AddContactDialogState extends State<AddContactDialog> {
         context,
         listen: false,
       ).addContact(newContact);
-
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+      if (mounted) Navigator.of(context).pop();
     } catch (e) {
-      // Handle error visually if necessary
+      debugPrint('Error adding contact: $e');
     }
   }
 
@@ -115,7 +102,7 @@ class _AddContactDialogState extends State<AddContactDialog> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  'Add Contact',
+                  'Add New Person',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Theme.of(context).colorScheme.primary,
@@ -123,43 +110,71 @@ class _AddContactDialogState extends State<AddContactDialog> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
+                SegmentedButton<String>(
+                  style: SegmentedButton.styleFrom(
+                    selectedBackgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.primary,
+                    selectedForegroundColor: Theme.of(
+                      context,
+                    ).colorScheme.onPrimary,
+                    foregroundColor: Theme.of(context).colorScheme.onSurface,
+                  ),
+                  segments: const [
+                    ButtonSegment(
+                      value: 'Worker',
+                      label: Text('Worker'),
+                      icon: Icon(Icons.engineering),
+                    ),
+                    ButtonSegment(
+                      value: 'Customer',
+                      label: Text('Customer'),
+                      icon: Icon(Icons.person),
+                    ),
+                  ],
+                  selected: {_contactType},
+                  onSelectionChanged: (Set<String> newSelection) {
+                    setState(() => _contactType = newSelection.first);
+                  },
+                ),
+                const SizedBox(height: 16),
                 OutlinedButton.icon(
                   onPressed: _pickExternalContact,
                   icon: const Icon(Icons.contacts),
-                  label: const Text('Pick from Device Contacts'),
+                  label: const Text('Pick from Device'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Theme.of(context).colorScheme.secondary,
-                    side: BorderSide(
-                      color: Theme.of(context).colorScheme.secondary,
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                const Divider(),
-                const SizedBox(height: 16),
+                const Divider(height: 32),
                 TextFormField(
                   controller: _nameController,
-                  decoration: const InputDecoration(labelText: 'Name'),
+                  decoration: const InputDecoration(
+                    labelText: 'Full Name',
+                    prefixIcon: Icon(Icons.badge),
+                  ),
                   textCapitalization: TextCapitalization.words,
                   validator: (v) => (v == null || v.trim().isEmpty)
                       ? 'Name is required'
                       : null,
                 ),
                 const SizedBox(height: 16),
-                TextFormField(
-                  controller: _roleController,
-                  decoration: const InputDecoration(
-                    labelText: 'Role (e.g., Plumber, Contractor)',
+                if (_contactType == 'Worker')
+                  TextFormField(
+                    controller: _roleController,
+                    decoration: const InputDecoration(
+                      labelText: 'Role',
+                      hintText: 'e.g. Plumber, Contractor',
+                      prefixIcon: Icon(Icons.work),
+                    ),
+                    textCapitalization: TextCapitalization.words,
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Role is required'
+                        : null,
                   ),
-                  textCapitalization: TextCapitalization.words,
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Role is required'
-                      : null,
-                ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _phoneController,
@@ -170,13 +185,9 @@ class _AddContactDialogState extends State<AddContactDialog> {
                   ),
                   keyboardType: TextInputType.phone,
                   validator: (v) {
-                    if (v == null || v.isEmpty) return 'Phone number required';
-                    // Clean non-digits
-                    final cleanDigit = v.replaceAll(RegExp(r'[^0-9]'), '');
-                    if (cleanDigit.length != 10) {
-                      return 'Must be exactly 10 digits';
-                    }
-                    return null;
+                    if (v == null || v.isEmpty) return 'Phone required';
+                    final clean = v.replaceAll(RegExp(r'[^0-9]'), '');
+                    return clean.length == 10 ? null : 'Must be 10 digits';
                   },
                 ),
                 const SizedBox(height: 24),
@@ -184,7 +195,7 @@ class _AddContactDialogState extends State<AddContactDialog> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
+                      onPressed: () => Navigator.pop(context),
                       child: const Text('Cancel'),
                     ),
                     const SizedBox(width: 8),

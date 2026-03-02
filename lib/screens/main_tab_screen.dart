@@ -79,7 +79,7 @@ class _MainTabScreenState extends State<MainTabScreen> {
             NavigationDestination(
               icon: Icon(Icons.people_outline),
               selectedIcon: Icon(Icons.people),
-              label: 'Team',
+              label: 'People',
             ),
             NavigationDestination(
               icon: Icon(Icons.analytics_outlined),

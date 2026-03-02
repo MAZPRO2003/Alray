@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,15 +10,20 @@ class ContactsProvider with ChangeNotifier {
   List<Contact> _contacts = [];
   String? _userId;
 
+  StreamSubscription? _teamSubscription;
+  StreamSubscription? _customerSubscription;
+
   List<Contact> get contacts => [..._contacts];
 
   void updateUserId(String? uid) {
     if (_userId != uid) {
       _userId = uid;
       _contacts = [];
+      _teamSubscription?.cancel();
+      _customerSubscription?.cancel();
+
       if (uid != null) {
-        // Defer to avoid "setState() called during build" from proxy provider update
-        Future.microtask(() => fetchContacts());
+        Future.microtask(() => startListening());
       } else {
         Future.microtask(() => notifyListeners());
       }
@@ -28,26 +34,78 @@ class ContactsProvider with ChangeNotifier {
     return _contacts.fold(0, (total, c) => total + c.callCount);
   }
 
-  Future<void> fetchContacts() async {
+  @override
+  void dispose() {
+    _teamSubscription?.cancel();
+    _customerSubscription?.cancel();
+    super.dispose();
+  }
+
+  void startListening() {
     if (_userId == null) return;
-    try {
-      final snapshot = await _firestore
-          .collection('contacts')
-          .where('userId', isEqualTo: _userId)
-          .get();
-      _contacts = snapshot.docs
-          .map((doc) => Contact.fromFirestore(doc, null))
-          .toList();
 
-      // Sort manually in memory to avoid needing a Firestore composite index
-      _contacts.sort(
-        (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-      );
+    // Listen to personal team contacts
+    _teamSubscription = _firestore
+        .collection('contacts')
+        .where('userId', isEqualTo: _userId)
+        .snapshots()
+        .listen((snapshot) {
+          _updateLocalContacts(snapshot.docs, isGlobal: false);
+        });
 
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Error fetching contacts: $e');
+    // Listen to global Customer inquiries
+    _customerSubscription = _firestore
+        .collection('contacts')
+        .where('role', isEqualTo: 'Customer')
+        .snapshots()
+        .listen((snapshot) {
+          _updateLocalContacts(snapshot.docs, isGlobal: true);
+        });
+  }
+
+  // Temporary storage to merge streams
+  final Map<String, Contact> _teamMap = {};
+  final Map<String, Contact> _customerMap = {};
+
+  void _updateLocalContacts(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs, {
+    required bool isGlobal,
+  }) {
+    final newContacts = docs
+        .map((doc) => Contact.fromFirestore(doc, null))
+        .toList();
+
+    if (isGlobal) {
+      _customerMap.clear();
+      for (var c in newContacts) {
+        _customerMap[c.id] = c;
+      }
+    } else {
+      _teamMap.clear();
+      for (var c in newContacts) {
+        _teamMap[c.id] = c;
+      }
     }
+
+    // Merge and Deduplicate
+    final Map<String, Contact> merged = {..._teamMap, ..._customerMap};
+    _contacts = merged.values.toList();
+
+    // Sort by createdAt (Newest First) as a default for the provider list
+    _contacts.sort((a, b) {
+      if (a.createdAt != null && b.createdAt != null) {
+        return b.createdAt!.compareTo(a.createdAt!);
+      }
+      return 0;
+    });
+
+    notifyListeners();
+  }
+
+  // legacy fetch method — now handled by listeners
+  Future<void> fetchContacts() async {
+    // If listeners are active, this is redundant, but kept for interface consistency
+    if (_teamSubscription == null) startListening();
   }
 
   Future<void> addContact(Contact contact) async {
@@ -56,22 +114,20 @@ class ContactsProvider with ChangeNotifier {
       final newContactRef = _firestore.collection('contacts').doc();
       final data = contact.toFirestore();
       data['userId'] = _userId;
+      data['createdAt'] = FieldValue.serverTimestamp();
 
       final contactToAdd = Contact(
         id: newContactRef.id,
         name: contact.name,
         role: contact.role,
         phoneNumber: contact.phoneNumber,
+        userId: _userId,
         notes: contact.notes,
+        createdAt: DateTime.now(),
       );
 
       await newContactRef.set(data);
-
       _contacts.add(contactToAdd);
-
-      // Re-sort the list
-      _contacts.sort((a, b) => a.name.compareTo(b.name));
-
       notifyListeners();
     } catch (e) {
       debugPrint('Error adding contact: $e');
@@ -110,6 +166,8 @@ class ContactsProvider with ChangeNotifier {
           callCount: currentContact.callCount + 1,
           callHistory: [...currentContact.callHistory, DateTime.now()],
           callNotes: currentContact.callNotes,
+          noteLog: currentContact.noteLog,
+          createdAt: currentContact.createdAt,
         );
 
         // Optimistic UI update
@@ -149,6 +207,7 @@ class ContactsProvider with ChangeNotifier {
           callHistory: currentContact.callHistory,
           callNotes: currentContact.callNotes,
           noteLog: [...currentContact.noteLog, newNote],
+          createdAt: currentContact.createdAt,
         );
 
         // Optimistic UI update
@@ -195,6 +254,7 @@ class ContactsProvider with ChangeNotifier {
           callHistory: currentContact.callHistory,
           callNotes: currentContact.callNotes,
           noteLog: updatedNoteLog,
+          createdAt: currentContact.createdAt,
         );
         notifyListeners();
 
@@ -224,6 +284,7 @@ class ContactsProvider with ChangeNotifier {
           callHistory: currentContact.callHistory,
           callNotes: newNotes,
           noteLog: currentContact.noteLog,
+          createdAt: currentContact.createdAt,
         );
 
         _contacts[contactIndex] = updatedContact;

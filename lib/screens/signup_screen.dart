@@ -16,8 +16,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   bool _isLoading = false;
   bool _isPasswordVisible = false;
+  bool _isConfirmPasswordVisible = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
 
   Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
@@ -269,6 +280,74 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ? 'Password must be at least 6 characters'
                       : null,
                 ).animate().fade(delay: 200.ms).slideY(begin: 0.1, end: 0),
+
+                const SizedBox(height: 20),
+
+                // Confirm Password field
+                Text(
+                  'Confirm Password',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _confirmPasswordController,
+                  obscureText: !_isConfirmPasswordVisible,
+                  decoration: InputDecoration(
+                    hintText: 'Re-enter your password',
+                    prefixIcon: Icon(
+                      Icons.lock_outline,
+                      color: colorScheme.primary,
+                      size: 20,
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _isConfirmPasswordVisible
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                        color: Colors.grey.shade500,
+                        size: 20,
+                      ),
+                      onPressed: () => setState(
+                        () => _isConfirmPasswordVisible =
+                            !_isConfirmPasswordVisible,
+                      ),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: Colors.grey.shade200),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: Colors.grey.shade200),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(
+                        color: colorScheme.primary,
+                        width: 1.5,
+                      ),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.isEmpty) {
+                      return 'Please confirm your password';
+                    }
+                    if (v != _passwordController.text) {
+                      return 'Passwords do not match';
+                    }
+                    return null;
+                  },
+                ).animate().fade(delay: 225.ms).slideY(begin: 0.1, end: 0),
 
                 const SizedBox(height: 32),
 

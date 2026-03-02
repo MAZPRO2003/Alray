@@ -72,12 +72,28 @@ function App() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Validation
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    const phoneRegex = /^[6-9]\d{9}$/;
+    const cleanPhone = formData.phone.replace(/[^0-9]/g, '');
+
+    if (!emailRegex.test(formData.email)) {
+      alert("Please enter a valid email address.");
+      return;
+    }
+
+    if (formData.phone && !phoneRegex.test(cleanPhone)) {
+      alert("Please enter a valid 10-digit Indian mobile number.");
+      return;
+    }
+
     setFormLoading(true);
     try {
       await addDoc(collection(db, 'contacts'), {
         name: formData.name,
         role: 'Customer',
-        phoneNumber: formData.phone,
+        phoneNumber: cleanPhone || formData.phone,
         notes: `Email: ${formData.email}\nMessage: ${formData.message}`,
         noteLog: [
           {

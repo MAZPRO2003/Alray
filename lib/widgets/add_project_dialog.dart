@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:alray_app/providers/budget_provider.dart';
+import 'package:alray_app/utils/validators.dart';
 
 class AddProjectDialog extends StatefulWidget {
   const AddProjectDialog({super.key});
@@ -122,6 +123,7 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
                     hintText: 'e.g. +919876543210',
                   ),
                   keyboardType: TextInputType.phone,
+                  validator: AppValidators.validateOptionalPhone,
                   onFieldSubmitted: (_) => _submitData(),
                 ),
                 const SizedBox(height: 16),

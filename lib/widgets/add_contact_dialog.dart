@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:alray_app/providers/contacts_provider.dart';
 import 'package:alray_app/models/contact.dart' as app_model;
+import 'package:alray_app/utils/validators.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -184,11 +185,7 @@ class _AddContactDialogState extends State<AddContactDialog> {
                     hintText: '10 digits',
                   ),
                   keyboardType: TextInputType.phone,
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Phone required';
-                    final clean = v.replaceAll(RegExp(r'[^0-9]'), '');
-                    return clean.length == 10 ? null : 'Must be 10 digits';
-                  },
+                  validator: AppValidators.validatePhone,
                 ),
                 const SizedBox(height: 24),
                 Row(

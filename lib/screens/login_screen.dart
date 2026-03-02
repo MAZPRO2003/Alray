@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:alray_app/utils/validators.dart';
 import 'package:provider/provider.dart';
 import 'package:alray_app/providers/auth_provider.dart';
 import 'package:go_router/go_router.dart';
@@ -176,9 +177,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       vertical: 14,
                     ),
                   ),
-                  validator: (v) => (v == null || !v.contains('@'))
-                      ? 'Enter a valid email'
-                      : null,
+                  validator: AppValidators.validateEmail,
                 ).animate().fade(delay: 100.ms).slideY(begin: 0.1, end: 0),
 
                 const SizedBox(height: 20),

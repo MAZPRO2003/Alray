@@ -3,12 +3,17 @@ import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:alray_app/screens/main_tab_screen.dart';
 import 'package:alray_app/screens/dashboard_screen.dart';
+
 import 'package:alray_app/screens/all_expenses_screen.dart';
 import 'package:alray_app/screens/settings_screen.dart';
 import 'package:alray_app/screens/project_details_screen.dart';
 import 'package:alray_app/screens/contacts_screen.dart';
+import 'package:alray_app/screens/contact_details_screen.dart';
+import 'package:alray_app/screens/profile_screen.dart';
 import 'package:alray_app/screens/login_screen.dart';
 import 'package:alray_app/screens/signup_screen.dart';
+import 'package:alray_app/screens/analytics_screen.dart';
+import 'package:alray_app/screens/ai_chat_screen.dart';
 import 'package:alray_app/providers/auth_provider.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -57,6 +62,11 @@ GoRouter createAppRouter(AuthProvider authProvider) {
         path: '/signup',
         builder: (context, state) => const SignUpScreen(),
       ),
+      GoRoute(
+        path: '/chat',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const AiChatScreen(),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return MainTabScreen(navigationShell: navigationShell);
@@ -92,7 +102,37 @@ GoRouter createAppRouter(AuthProvider authProvider) {
             routes: [
               GoRoute(
                 path: '/contacts',
-                builder: (context, state) => const ContactsScreen(),
+                builder: (context, state) {
+                  final highlightId = state.uri.queryParameters['highlightId'];
+                  final openNoteId = state.uri.queryParameters['openNoteId'];
+                  return ContactsScreen(
+                    highlightId: highlightId,
+                    openNoteId: openNoteId,
+                  );
+                },
+                routes: [
+                  GoRoute(
+                    path: 'details/:id',
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (context, state) {
+                      final id = state.pathParameters['id']!;
+                      final openNote =
+                          state.uri.queryParameters['openNote'] == 'true';
+                      return ContactDetailsScreen(
+                        contactId: id,
+                        openNote: openNote,
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/analytics',
+                builder: (context, state) => const AnalyticsScreen(),
               ),
             ],
           ),
@@ -101,6 +141,13 @@ GoRouter createAppRouter(AuthProvider authProvider) {
               GoRoute(
                 path: '/settings',
                 builder: (context, state) => const SettingsScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'profile',
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (context, state) => const ProfileScreen(),
+                  ),
+                ],
               ),
             ],
           ),

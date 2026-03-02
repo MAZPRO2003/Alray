@@ -23,7 +23,6 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
   final _materialTypeController = TextEditingController();
   final _workerNameController = TextEditingController();
   final _vendorNameController = TextEditingController();
-  // Default to today
   DateTime _selectedDate = DateTime.now();
   ExpenseCategory _selectedCategory = ExpenseCategory.contractor;
   bool _isLoading = false;
@@ -61,32 +60,35 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
       return;
     }
 
-    final newExpense = Expense(
-      projectId: widget.projectId,
-      description: enteredDesc,
-      amount: enteredAmount,
-      date: _selectedDate,
-      category: _selectedCategory,
-      customCategoryName: _selectedCategory == ExpenseCategory.other
-          ? enteredCustomCategory
-          : null,
-      quantity: _selectedCategory == ExpenseCategory.material
-          ? enteredQuantity
-          : null,
-      unit: _selectedCategory == ExpenseCategory.material ? enteredUnit : null,
-      materialType: _selectedCategory == ExpenseCategory.material
-          ? enteredMaterialType
-          : null,
-      workerName: _selectedCategory == ExpenseCategory.contractor
-          ? enteredWorkerName
-          : null,
-      vendorName: _selectedCategory == ExpenseCategory.material
-          ? enteredVendorName
-          : null,
-    );
-
     setState(() => _isLoading = true);
     try {
+      final newExpense = Expense(
+        projectId: widget.projectId,
+        description: enteredDesc,
+        amount: enteredAmount,
+        date: _selectedDate,
+        category: _selectedCategory,
+        customCategoryName: _selectedCategory == ExpenseCategory.other
+            ? enteredCustomCategory
+            : null,
+        quantity: _selectedCategory == ExpenseCategory.material
+            ? enteredQuantity
+            : null,
+        unit: _selectedCategory == ExpenseCategory.material
+            ? enteredUnit
+            : null,
+        materialType: _selectedCategory == ExpenseCategory.material
+            ? enteredMaterialType
+            : null,
+        workerName: _selectedCategory == ExpenseCategory.contractor
+            ? enteredWorkerName
+            : null,
+        vendorName: _selectedCategory == ExpenseCategory.material
+            ? enteredVendorName
+            : null,
+        attachmentUrl: null,
+      );
+
       await Provider.of<BudgetProvider>(
         context,
         listen: false,
@@ -143,17 +145,19 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
 
                 // 1. Category Selection
                 DropdownButtonFormField<ExpenseCategory>(
-                  value: _selectedCategory,
+                  initialValue: _selectedCategory,
                   decoration: const InputDecoration(
                     labelText: 'Category',
                     prefixIcon: Icon(Icons.category_outlined),
                   ),
                   items: ExpenseCategory.values.map((category) {
                     String label = category.name.toUpperCase();
-                    if (category == ExpenseCategory.contractor)
+                    if (category == ExpenseCategory.contractor) {
                       label = 'WORKERS';
-                    if (category == ExpenseCategory.material)
+                    }
+                    if (category == ExpenseCategory.material) {
                       label = 'MATERIAL';
+                    }
                     if (category == ExpenseCategory.other) label = 'CUSTOM';
 
                     return DropdownMenuItem(
@@ -246,8 +250,9 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'Amount is required';
                     final parsed = double.tryParse(v);
-                    if (parsed == null || parsed <= 0)
+                    if (parsed == null || parsed <= 0) {
                       return 'Enter a valid positive number';
+                    }
                     return null;
                   },
                 ),
@@ -359,7 +364,6 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 32),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,

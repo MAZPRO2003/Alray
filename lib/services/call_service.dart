@@ -7,7 +7,6 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
-import 'package:flutter_background_service_android/flutter_background_service_android.dart';
 import 'package:alray_app/firebase_options.dart';
 import 'package:alray_app/routes/app_router.dart';
 import 'package:flutter/services.dart' show appFlavor;
@@ -73,11 +72,19 @@ class CallService {
     );
   }
 
+  String? initialPayload;
+
   Future<void> initNotifications() async {
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/launcher_icon');
     const InitializationSettings initializationSettings =
         InitializationSettings(android: initializationSettingsAndroid);
+
+    final details = await _notificationsPlugin
+        .getNotificationAppLaunchDetails();
+    if (details != null && details.didNotificationLaunchApp) {
+      initialPayload = details.notificationResponse?.payload;
+    }
 
     // Initialize with a callback to handle when a user TAPS the notification
     await _notificationsPlugin.initialize(
@@ -85,8 +92,11 @@ class CallService {
       onDidReceiveNotificationResponse: (NotificationResponse response) async {
         if (response.payload != null) {
           debugPrint('Notification tapped, navigating to ${response.payload}');
-          // Route the foreground app to the requested screen
-          appRouter?.go(response.payload!);
+          if (appRouter != null) {
+            appRouter!.go(response.payload!);
+          } else {
+            initialPayload = response.payload;
+          }
         }
       },
     );
@@ -144,7 +154,7 @@ class CallService {
             final role = data['role'] as String? ?? 'Team Member';
 
             // 1. Notify user of incoming Team Member call
-            await showNotification(_activeContactName!, role);
+            await showNotification(doc.id, _activeContactName!, role);
 
             // 2. Increment Call Count in DB
             await FirebaseFirestore.instance
@@ -160,7 +170,11 @@ class CallService {
     }
   }
 
-  Future<void> showNotification(String contactName, String role) async {
+  Future<void> showNotification(
+    String contactId,
+    String contactName,
+    String role,
+  ) async {
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
           'call_alerts',
@@ -180,7 +194,8 @@ class CallService {
       title: 'Team Member Calling',
       body: '$contactName ($role) is calling you.',
       notificationDetails: platformChannelSpecifics,
-      payload: '/contacts', // Tells the router where to go on tap
+      payload:
+          '/contacts/details/$contactId', // Tells the router where to go on tap
     );
   }
 
@@ -205,7 +220,7 @@ class CallService {
       title: 'Call Ended: $contactName',
       body: 'Tap to open Alray and log your meeting notes.',
       notificationDetails: platformChannelSpecifics,
-      payload: '/contacts',
+      payload: '/contacts/details/$contactId?openNote=true',
     );
   }
 }

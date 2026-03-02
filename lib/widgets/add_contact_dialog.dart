@@ -173,8 +173,9 @@ class _AddContactDialogState extends State<AddContactDialog> {
                     if (v == null || v.isEmpty) return 'Phone number required';
                     // Clean non-digits
                     final cleanDigit = v.replaceAll(RegExp(r'[^0-9]'), '');
-                    if (cleanDigit.length != 10)
+                    if (cleanDigit.length != 10) {
                       return 'Must be exactly 10 digits';
+                    }
                     return null;
                   },
                 ),

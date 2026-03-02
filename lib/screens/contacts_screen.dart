@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:alray_app/providers/contacts_provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:alray_app/widgets/add_contact_dialog.dart';
 import 'package:alray_app/widgets/add_contact_note_dialog.dart';
 import 'package:alray_app/models/contact.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
 
 class ContactsScreen extends StatefulWidget {
-  const ContactsScreen({super.key});
+  final String? highlightId;
+  final String? openNoteId;
+  const ContactsScreen({super.key, this.highlightId, this.openNoteId});
 
   @override
   State<ContactsScreen> createState() => _ContactsScreenState();
@@ -20,10 +21,35 @@ class _ContactsScreenState extends State<ContactsScreen> {
   String _selectedRole = 'All';
   final TextEditingController _searchController = TextEditingController();
 
+  bool _deepLinkHandled = false;
+
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _handleDeepLink(List<Contact> contacts) {
+    if (_deepLinkHandled) return;
+    final targetId = widget.openNoteId ?? widget.highlightId;
+    if (targetId == null) return;
+
+    try {
+      final contact = contacts.firstWhere((c) => c.id == targetId);
+      _deepLinkHandled = true;
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        setState(() {
+          _searchQuery = contact.name;
+          _searchController.text = contact.name;
+        });
+        if (widget.openNoteId != null && mounted) {
+          _showAddNoteDialog(context, contact);
+        }
+      });
+    } catch (e) {
+      // Contact not found or not loaded yet
+    }
   }
 
   void _showAddContactDialog(BuildContext context) {
@@ -41,37 +67,6 @@ class _ContactsScreenState extends State<ContactsScreen> {
     );
   }
 
-  Future<void> _makePhoneCall(String phoneNumber) async {
-    final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
-    if (await canLaunchUrl(launchUri)) {
-      await launchUrl(launchUri);
-    } else {
-      debugPrint('Could not launch $launchUri');
-    }
-  }
-
-  Future<void> _openWhatsApp(String phoneNumber) async {
-    final String cleanNumber = phoneNumber.replaceAll(RegExp(r'[^0-9+]'), '');
-    final Uri webUri = Uri.parse('https://wa.me/$cleanNumber');
-
-    try {
-      final launched = await launchUrl(
-        webUri,
-        mode: LaunchMode.externalApplication,
-      );
-      if (!launched) {
-        throw Exception('Could not launch WhatsApp');
-      }
-    } catch (e) {
-      debugPrint('Could not launch WhatsApp: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Could not open WhatsApp: $e')));
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -79,6 +74,10 @@ class _ContactsScreenState extends State<ContactsScreen> {
       body: Consumer<ContactsProvider>(
         builder: (context, contactsProvider, child) {
           final allContacts = contactsProvider.contacts;
+
+          if (!_deepLinkHandled && allContacts.isNotEmpty) {
+            _handleDeepLink(allContacts);
+          }
 
           // Extract unique roles
           final roles = [
@@ -164,9 +163,10 @@ class _ContactsScreenState extends State<ContactsScreen> {
                               _selectedRole = role;
                             });
                           },
-                          backgroundColor: Theme.of(
-                            context,
-                          ).colorScheme.surfaceVariant.withOpacity(0.3),
+                          backgroundColor: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest
+                              .withValues(alpha: 0.3),
                           selectedColor: Theme.of(
                             context,
                           ).colorScheme.primaryContainer,
@@ -220,23 +220,26 @@ class _ContactsScreenState extends State<ContactsScreen> {
                           final contact = filteredContacts[index];
 
                           return Card(
-                                margin: const EdgeInsets.only(bottom: 16),
-                                elevation: 2,
+                                margin: const EdgeInsets.only(bottom: 12),
+                                elevation: 1,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
                                 ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          CircleAvatar(
-                                            radius: 24,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(16),
+                                  onTap: () {
+                                    context.push(
+                                      '/contacts/details/${contact.id}',
+                                    );
+                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: Row(
+                                      children: [
+                                        Hero(
+                                          tag: 'avatar_${contact.id}',
+                                          child: CircleAvatar(
+                                            radius: 28,
                                             backgroundColor: Theme.of(
                                               context,
                                             ).colorScheme.primaryContainer,
@@ -246,269 +249,64 @@ class _ContactsScreenState extends State<ContactsScreen> {
                                                         .toUpperCase()
                                                   : '?',
                                               style: const TextStyle(
-                                                fontSize: 20,
+                                                fontSize: 24,
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
                                           ),
-                                          const SizedBox(width: 16),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Row(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Expanded(
-                                                      child: Text(
-                                                        contact.name,
-                                                        style: const TextStyle(
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          fontSize: 18,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                const SizedBox(height: 6),
-                                                Text(
-                                                  contact.role,
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.w600,
-                                                    fontSize: 14,
-                                                    color: Theme.of(
-                                                      context,
-                                                    ).colorScheme.primary,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 6),
-                                                Row(
-                                                  children: [
-                                                    Icon(
-                                                      Icons.phone,
-                                                      size: 14,
-                                                      color:
-                                                          Colors.grey.shade600,
-                                                    ),
-                                                    const SizedBox(width: 4),
-                                                    Text(
-                                                      contact.phoneNumber,
-                                                      style: TextStyle(
-                                                        fontSize: 14,
-                                                        color: Colors
-                                                            .grey
-                                                            .shade700,
-                                                        letterSpacing: 0.5,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      if (contact.callNotes != null &&
-                                          contact.callNotes!.isNotEmpty) ...[
-                                        const SizedBox(height: 16),
-                                        Container(
-                                          padding: const EdgeInsets.all(12),
-                                          decoration: BoxDecoration(
-                                            color: Colors.blueGrey.shade50,
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                            border: Border.all(
-                                              color: Colors.blueGrey.shade100,
-                                            ),
-                                          ),
-                                          child: Row(
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: Column(
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
-                                              Icon(
-                                                Icons.notes,
-                                                size: 18,
-                                                color: Colors.blueGrey.shade400,
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Expanded(
-                                                child: Text(
-                                                  contact.callNotes!,
-                                                  style: TextStyle(
-                                                    fontStyle: FontStyle.italic,
-                                                    color: Colors
-                                                        .blueGrey
-                                                        .shade800,
-                                                    fontSize: 13,
-                                                  ),
+                                              Text(
+                                                contact.name,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 18,
                                                 ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                contact.role,
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 14,
+                                                  color: Theme.of(
+                                                    context,
+                                                  ).colorScheme.primary,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Row(
+                                                children: [
+                                                  Icon(
+                                                    Icons.phone,
+                                                    size: 14,
+                                                    color: Colors.grey.shade600,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    contact.phoneNumber,
+                                                    style: TextStyle(
+                                                      fontSize: 13,
+                                                      color:
+                                                          Colors.grey.shade700,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ],
                                           ),
                                         ),
-                                      ],
-                                      if (contact.callHistory.isNotEmpty) ...[
-                                        const SizedBox(height: 16),
-                                        const Text(
-                                          'Recent Calls',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.grey,
-                                          ),
+                                        const Icon(
+                                          Icons.chevron_right,
+                                          color: Colors.grey,
                                         ),
-                                        const SizedBox(height: 8),
-                                        ...contact.callHistory.reversed
-                                            .take(5)
-                                            .map(
-                                              (date) => Padding(
-                                                padding: const EdgeInsets.only(
-                                                  bottom: 6.0,
-                                                ),
-                                                child: Row(
-                                                  children: [
-                                                    Icon(
-                                                      Icons.history_toggle_off,
-                                                      size: 16,
-                                                      color: Colors
-                                                          .orange
-                                                          .shade600,
-                                                    ),
-                                                    const SizedBox(width: 8),
-                                                    Text(
-                                                      DateFormat(
-                                                        'MMM d, h:mm a',
-                                                      ).format(date),
-                                                      style: TextStyle(
-                                                        fontSize: 13,
-                                                        color: Colors
-                                                            .grey
-                                                            .shade800,
-                                                        fontWeight:
-                                                            FontWeight.w500,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
                                       ],
-                                      const Padding(
-                                        padding: EdgeInsets.symmetric(
-                                          vertical: 12.0,
-                                        ),
-                                        child: Divider(height: 1),
-                                      ),
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceAround,
-                                        children: [
-                                          TextButton.icon(
-                                            onPressed: () => _makePhoneCall(
-                                              contact.phoneNumber,
-                                            ),
-                                            icon: const Icon(
-                                              Icons.call,
-                                              color: Colors.green,
-                                              size: 20,
-                                            ),
-                                            label: const Text(
-                                              'Call',
-                                              style: TextStyle(
-                                                color: Colors.green,
-                                                fontSize: 13,
-                                              ),
-                                            ),
-                                          ),
-                                          TextButton.icon(
-                                            onPressed: () => _openWhatsApp(
-                                              contact.phoneNumber,
-                                            ),
-                                            icon: const Icon(
-                                              Icons.chat,
-                                              color: Colors.teal,
-                                              size: 20,
-                                            ),
-                                            label: const Text(
-                                              'WhatsApp',
-                                              style: TextStyle(
-                                                color: Colors.teal,
-                                                fontSize: 13,
-                                              ),
-                                            ),
-                                          ),
-                                          TextButton.icon(
-                                            onPressed: () => _showAddNoteDialog(
-                                              context,
-                                              contact,
-                                            ),
-                                            icon: const Icon(
-                                              Icons.note_alt_outlined,
-                                              color: Colors.blue,
-                                              size: 20,
-                                            ),
-                                            label: const Text(
-                                              'Note',
-                                              style: TextStyle(
-                                                color: Colors.blue,
-                                                fontSize: 13,
-                                              ),
-                                            ),
-                                          ),
-                                          IconButton(
-                                            icon: const Icon(
-                                              Icons.delete_outline,
-                                              color: Colors.red,
-                                              size: 22,
-                                            ),
-                                            onPressed: () {
-                                              showDialog(
-                                                context: context,
-                                                builder: (ctx) => AlertDialog(
-                                                  title: const Text(
-                                                    'Delete Contact?',
-                                                  ),
-                                                  content: Text(
-                                                    'Are you sure you want to delete ${contact.name}? This action cannot be undone.',
-                                                  ),
-                                                  actions: [
-                                                    TextButton(
-                                                      onPressed: () =>
-                                                          Navigator.of(
-                                                            ctx,
-                                                          ).pop(),
-                                                      child: const Text(
-                                                        'Cancel',
-                                                      ),
-                                                    ),
-                                                    TextButton(
-                                                      onPressed: () {
-                                                        contactsProvider
-                                                            .deleteContact(
-                                                              contact.id,
-                                                            );
-                                                        Navigator.of(ctx).pop();
-                                                      },
-                                                      child: const Text(
-                                                        'Delete',
-                                                        style: TextStyle(
-                                                          color: Colors.red,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              );
-                                            },
-                                            tooltip: 'Delete Contact',
-                                          ),
-                                        ],
-                                      ),
-                                    ],
+                                    ),
                                   ),
                                 ),
                               )
@@ -522,10 +320,23 @@ class _ContactsScreenState extends State<ContactsScreen> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'add_contact_fab',
-        onPressed: () => _showAddContactDialog(context),
-        child: const Icon(Icons.person_add),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton.small(
+            heroTag: 'ai_chat_fab_contacts',
+            onPressed: () => context.push('/chat'),
+            backgroundColor: Colors.indigo,
+            tooltip: 'AI Chat Assistant',
+            child: const Icon(Icons.smart_toy, color: Colors.white, size: 18),
+          ),
+          const SizedBox(height: 8),
+          FloatingActionButton(
+            heroTag: 'add_contact_fab',
+            onPressed: () => _showAddContactDialog(context),
+            child: const Icon(Icons.person_add),
+          ),
+        ],
       ),
     );
   }

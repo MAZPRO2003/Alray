@@ -6,11 +6,13 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:alray_app/routes/app_router.dart';
 import 'package:alray_app/firebase_options.dart';
 import 'package:alray_app/providers/contacts_provider.dart';
+import 'package:alray_app/providers/theme_provider.dart';
+import 'package:alray_app/utils/currency_utils.dart';
 import 'package:alray_app/services/call_service.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:alray_app/app_config.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,6 +56,27 @@ class _MyAppState extends State<MyApp> {
     super.initState();
     _authProvider = AuthProvider();
     _router = createAppRouter(_authProvider);
+    _initPreferences();
+
+    final payload = CallService().initialPayload;
+    if (payload != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // A slight delay ensures the initial /projects route has settled
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) {
+            _router.go(payload);
+            CallService().initialPayload = null;
+          }
+        });
+      });
+    }
+  }
+
+  Future<void> _initPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    // Load currency system preference
+    final useIndian = prefs.getBool('indian_system') ?? true;
+    CurrencyUtils.useIndianSystem = useIndian;
   }
 
   @override
@@ -66,6 +89,7 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider.value(value: _authProvider),
         ChangeNotifierProxyProvider<AuthProvider, BudgetProvider>(
           create: (_) => BudgetProvider(),
@@ -77,92 +101,15 @@ class _MyAppState extends State<MyApp> {
               contacts!..updateUserId(auth.user?.uid),
         ),
       ],
-      child: MaterialApp.router(
-        debugShowCheckedModeBanner: AppConfig.isDev,
-        title: AppConfig.appName,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF6750A4), // Deep Premium Purple
-            primary: const Color(0xFF6750A4), // Purple
-            onPrimary: Colors.white,
-            secondary: const Color(0xFF03DAC6), // Vibrant Teal
-            onSecondary: Colors.black,
-            tertiary: const Color(0xFFEF233C), // Vibrant Red accent
-            surface: const Color(0xFFFDFBFF), // Very light purple-tinted white
-            background: const Color(0xFFF4F3F7), // Light premium grey/purple
-            brightness: Brightness.light,
-          ),
-          useMaterial3: true,
-          textTheme: GoogleFonts.poppinsTextTheme(
-            Theme.of(context).textTheme,
-          ), // Poppins often feels more premium/colorful than Inter
-          appBarTheme: const AppBarTheme(
-            centerTitle: true,
-            elevation: 0,
-            backgroundColor: Color(0xFF6750A4), // Solid colored app bar
-            foregroundColor: Colors.white,
-          ),
-          inputDecorationTheme: InputDecorationTheme(
-            filled: true,
-            fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 16,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide.none,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: Colors.grey.shade200, width: 1.5),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(
-                color: Color(0xFF6750A4), // Match primary
-                width: 2.0,
-              ),
-            ),
-            labelStyle: TextStyle(color: Colors.grey.shade700),
-          ),
-          elevatedButtonTheme: ElevatedButtonThemeData(
-            style: ElevatedButton.styleFrom(
-              elevation: 4,
-              shadowColor: const Color(0xFF6750A4).withOpacity(0.4),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              backgroundColor: const Color(0xFF6750A4),
-              foregroundColor: Colors.white,
-              textStyle: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
-          cardTheme: CardThemeData(
-            elevation: 8,
-            shadowColor: const Color(0xFF6750A4).withOpacity(0.15),
-            color: Colors.white,
-            surfaceTintColor: Colors.white,
-            margin: const EdgeInsets.symmetric(vertical: 8),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-          ),
-          floatingActionButtonTheme: FloatingActionButtonThemeData(
-            backgroundColor: const Color(0xFF03DAC6), // Vibrant Teal
-            foregroundColor: Colors.black87,
-            elevation: 6,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-          ),
-        ),
-        routerConfig: _router,
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          return MaterialApp.router(
+            debugShowCheckedModeBanner: AppConfig.isDev,
+            title: AppConfig.appName,
+            theme: themeProvider.themeData,
+            routerConfig: _router,
+          );
+        },
       ),
     );
   }

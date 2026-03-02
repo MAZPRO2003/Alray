@@ -124,19 +124,23 @@ class TransactionDetailsDialog extends StatelessWidget {
     final List<Widget> details = [];
 
     if (e.category == ExpenseCategory.material) {
-      if (e.materialType != null)
+      if (e.materialType != null) {
         details.add(_buildDetailRow('Material', e.materialType!));
-      if (e.vendorName != null)
+      }
+      if (e.vendorName != null) {
         details.add(_buildDetailRow('Vendor', e.vendorName!));
+      }
       if (e.quantity != null && e.unit != null) {
         details.add(_buildDetailRow('Quantity', '${e.quantity} ${e.unit}'));
       }
     } else if (e.category == ExpenseCategory.contractor) {
-      if (e.workerName != null)
+      if (e.workerName != null) {
         details.add(_buildDetailRow('Worker/Contractor', e.workerName!));
+      }
     } else if (e.category == ExpenseCategory.other) {
-      if (e.customCategoryName != null)
+      if (e.customCategoryName != null) {
         details.add(_buildDetailRow('Custom Category', e.customCategoryName!));
+      }
     }
 
     return details;

@@ -17,6 +17,8 @@ class Expense {
   final String? materialType;
   final String? workerName;
   final String? vendorName;
+  final String? attachmentUrl;
+  final String? payableId;
 
   Expense({
     String? id,
@@ -31,6 +33,8 @@ class Expense {
     this.materialType,
     this.workerName,
     this.vendorName,
+    this.attachmentUrl,
+    this.payableId,
   }) : id = id ?? uuid.v4();
 
   factory Expense.fromJson(Map<String, dynamic> json, String documentId) {
@@ -52,6 +56,8 @@ class Expense {
       materialType: json['materialType'] as String?,
       workerName: json['workerName'] as String?,
       vendorName: json['vendorName'] as String?,
+      attachmentUrl: json['attachmentUrl'] as String?,
+      payableId: json['payableId'] as String?,
     );
   }
 
@@ -68,6 +74,8 @@ class Expense {
       if (materialType != null) 'materialType': materialType,
       if (workerName != null) 'workerName': workerName,
       if (vendorName != null) 'vendorName': vendorName,
+      if (attachmentUrl != null) 'attachmentUrl': attachmentUrl,
+      if (payableId != null) 'payableId': payableId,
     };
   }
 

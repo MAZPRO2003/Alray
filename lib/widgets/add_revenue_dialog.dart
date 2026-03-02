@@ -40,16 +40,17 @@ class _AddRevenueDialogState extends State<AddRevenueDialog> {
       return;
     }
 
-    final newRevenue = Revenue(
-      id: '', // Firestore will assign the real ID
-      projectId: _selectedProjectId ?? '',
-      amount: enteredAmount,
-      description: _descriptionController.text.trim(),
-      date: _selectedDate,
-    );
-
     setState(() => _isLoading = true);
     try {
+      final newRevenue = Revenue(
+        id: '', // Firestore will assign the real ID
+        projectId: _selectedProjectId ?? '',
+        amount: enteredAmount,
+        description: _descriptionController.text.trim(),
+        date: _selectedDate,
+        attachmentUrl: null,
+      );
+
       await Provider.of<BudgetProvider>(
         context,
         listen: false,
@@ -114,7 +115,7 @@ class _AddRevenueDialogState extends State<AddRevenueDialog> {
 
                 // Project Selection (if not pre-selected)
                 DropdownButtonFormField<String?>(
-                  value: _selectedProjectId,
+                  initialValue: _selectedProjectId,
                   decoration: const InputDecoration(
                     labelText: 'Project (Optional)',
                     prefixIcon: Icon(Icons.business_center_outlined),

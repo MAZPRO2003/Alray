@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
 import 'package:alray_app/providers/budget_provider.dart';
 import 'package:alray_app/models/expense.dart';
 import 'package:alray_app/models/revenue.dart';
@@ -33,6 +34,7 @@ class _AllExpensesScreenState extends State<AllExpensesScreen> {
   /// null = all, 'revenue' = customer payments, or ExpenseCategory
   dynamic _selectedFilter;
   String? _selectedProjectId;
+  String _paymentFilter = 'all'; // 'all' | 'pending' | 'paid'
   late Future<void> _loadFuture;
 
   @override
@@ -48,6 +50,13 @@ class _AllExpensesScreenState extends State<AllExpensesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('All Transactions')),
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'ai_chat_fab_expenses',
+        onPressed: () => context.push('/chat'),
+        backgroundColor: Colors.indigo,
+        tooltip: 'AI Chat Assistant',
+        child: const Icon(Icons.smart_toy, color: Colors.white),
+      ),
       body: FutureBuilder(
         future: _loadFuture,
         builder: (context, snapshot) {
@@ -139,16 +148,18 @@ class _AllExpensesScreenState extends State<AllExpensesScreen> {
             totalRevenue += (item.data as Revenue).amount;
           } else {
             final e = item.data as Expense;
-            if (e.category == ExpenseCategory.contractor)
+            if (e.category == ExpenseCategory.contractor) {
               totalWorkers += e.amount;
-            if (e.category == ExpenseCategory.material)
+            }
+            if (e.category == ExpenseCategory.material) {
               totalMaterial += e.amount;
+            }
             if (e.category == ExpenseCategory.other) totalCustom += e.amount;
           }
         }
 
         // 2. Filter by Category for the list display
-        final filteredList = _selectedFilter == null
+        final categoryFiltered = _selectedFilter == null
             ? projectFiltered
             : projectFiltered.where((t) {
                 if (_selectedFilter == 'revenue') return t.data is Revenue;
@@ -156,6 +167,39 @@ class _AllExpensesScreenState extends State<AllExpensesScreen> {
                   return (t.data as Expense).category == _selectedFilter;
                 }
                 return false;
+              }).toList();
+
+        // 3. Build set of expense IDs that are "pending" (linked to a payable with remaining balance)
+        final pendingExpenseIds = <String>{};
+        for (var project in budgetProvider.projects) {
+          final pendingPayableIds = project.payables
+              .where((p) {
+                final paid = project.expenses
+                    .where((e) => e.payableId == p.id)
+                    .fold(0.0, (sum, e) => sum + e.amount);
+                return (p.totalAmount - paid) > 0;
+              })
+              .map((p) => p.id)
+              .toSet();
+          for (var e in project.expenses) {
+            if (e.payableId != null &&
+                pendingPayableIds.contains(e.payableId)) {
+              pendingExpenseIds.add(e.id);
+            }
+          }
+        }
+
+        // 4. Filter by payment status
+        final filteredList = _paymentFilter == 'all'
+            ? categoryFiltered
+            : _paymentFilter == 'pending'
+            ? categoryFiltered.where((t) {
+                if (t.data is Revenue) return false;
+                return pendingExpenseIds.contains((t.data as Expense).id);
+              }).toList()
+            : categoryFiltered.where((t) {
+                if (t.data is Revenue) return true;
+                return !pendingExpenseIds.contains((t.data as Expense).id);
               }).toList();
 
         return Column(
@@ -299,6 +343,40 @@ class _AllExpensesScreenState extends State<AllExpensesScreen> {
               ),
             ),
             const SizedBox(height: 8),
+            // Pending / Paid tab bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _TabButton(
+                      label: 'All',
+                      isSelected: _paymentFilter == 'all',
+                      onTap: () => setState(() => _paymentFilter = 'all'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _TabButton(
+                      label: 'Pending',
+                      isSelected: _paymentFilter == 'pending',
+                      onTap: () => setState(() => _paymentFilter = 'pending'),
+                      activeColor: Colors.orange,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _TabButton(
+                      label: 'Paid',
+                      isSelected: _paymentFilter == 'paid',
+                      onTap: () => setState(() => _paymentFilter = 'paid'),
+                      activeColor: Colors.green,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
             const Divider(height: 1),
 
             // List of Transactions
@@ -323,6 +401,19 @@ class _AllExpensesScreenState extends State<AllExpensesScreen> {
                             ? _categoryIcon['revenue']!
                             : _categoryIcon[(item.data as Expense).category]!;
 
+                        // Determine Pending / Paid badge
+                        final bool isPending =
+                            !isRevenue &&
+                            pendingExpenseIds.contains(
+                              (item.data as Expense).id,
+                            );
+                        final String statusLabel = isRevenue
+                            ? 'Received'
+                            : (isPending ? 'Pending' : 'Paid');
+                        final Color statusColor = isRevenue
+                            ? Colors.blue
+                            : (isPending ? Colors.orange : Colors.green);
+
                         return Card(
                           margin: const EdgeInsets.symmetric(
                             horizontal: 16,
@@ -337,17 +428,49 @@ class _AllExpensesScreenState extends State<AllExpensesScreen> {
                             borderRadius: BorderRadius.circular(12),
                             child: ListTile(
                               leading: CircleAvatar(
-                                backgroundColor: color.withOpacity(0.1),
+                                backgroundColor: color.withValues(alpha: 0.1),
                                 child: Icon(icon, color: color, size: 20),
                               ),
-                              title: Text(
-                                isRevenue
-                                    ? "Customer Payment"
-                                    : (item.data as Expense).formattedCategory,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
+                              title: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      isRevenue
+                                          ? "Customer Payment"
+                                          : (item.data as Expense)
+                                                .formattedCategory,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: statusColor.withValues(
+                                        alpha: 0.12,
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: statusColor.withValues(
+                                          alpha: 0.4,
+                                        ),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      statusLabel,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: statusColor,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                               subtitle: Text(
                                 isRevenue
@@ -408,9 +531,9 @@ class _SummaryCard extends StatelessWidget {
       width: 120,
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
@@ -486,6 +609,46 @@ class _FilterChip extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TabButton extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final Color activeColor;
+  const _TabButton({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+    this.activeColor = const Color(0xFF6750A4),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? activeColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? activeColor : Colors.grey.shade300,
+          ),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.grey.shade700,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            fontSize: 13,
+          ),
         ),
       ),
     );

@@ -6,6 +6,7 @@ class Revenue {
   final double amount;
   final String description;
   final DateTime date;
+  final String? attachmentUrl;
 
   Revenue({
     required this.id,
@@ -13,6 +14,7 @@ class Revenue {
     required this.amount,
     required this.description,
     required this.date,
+    this.attachmentUrl,
   });
 
   factory Revenue.fromJson(Map<String, dynamic> json, String id) {
@@ -22,6 +24,7 @@ class Revenue {
       amount: (json['amount'] as num).toDouble(),
       description: json['description'] ?? '',
       date: (json['date'] as Timestamp).toDate(),
+      attachmentUrl: json['attachmentUrl'] as String?,
     );
   }
 
@@ -31,6 +34,7 @@ class Revenue {
       'amount': amount,
       'description': description,
       'date': Timestamp.fromDate(date),
+      if (attachmentUrl != null) 'attachmentUrl': attachmentUrl,
     };
   }
 }

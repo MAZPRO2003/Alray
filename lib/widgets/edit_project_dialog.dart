@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import 'package:alray_app/providers/budget_provider.dart';
 import 'package:alray_app/models/project.dart';
 
@@ -16,6 +17,9 @@ class _EditProjectDialogState extends State<EditProjectDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
   late final TextEditingController _budgetController;
+  late final TextEditingController _phoneController;
+  DateTime? _startDate;
+  DateTime? _endDate;
   bool _isLoading = false;
 
   @override
@@ -27,12 +31,18 @@ class _EditProjectDialogState extends State<EditProjectDialog> {
         widget.project.budget % 1 == 0 ? 0 : 2,
       ),
     );
+    _phoneController = TextEditingController(
+      text: widget.project.customerPhone,
+    );
+    _startDate = widget.project.startDate;
+    _endDate = widget.project.endDate;
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _budgetController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -41,6 +51,7 @@ class _EditProjectDialogState extends State<EditProjectDialog> {
 
     final newName = _nameController.text.trim();
     final newBudget = double.tryParse(_budgetController.text);
+    final newPhone = _phoneController.text.trim();
 
     if (newBudget == null || newBudget <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -51,10 +62,14 @@ class _EditProjectDialogState extends State<EditProjectDialog> {
 
     setState(() => _isLoading = true);
     try {
-      await Provider.of<BudgetProvider>(
-        context,
-        listen: false,
-      ).updateProject(widget.project.id, newName, newBudget);
+      await Provider.of<BudgetProvider>(context, listen: false).updateProject(
+        widget.project.id,
+        newName,
+        newBudget,
+        startDate: _startDate,
+        endDate: _endDate,
+        customerPhone: newPhone.isEmpty ? null : newPhone,
+      );
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
@@ -132,22 +147,65 @@ class _EditProjectDialogState extends State<EditProjectDialog> {
                   },
                   onFieldSubmitted: (_) => _submitData(),
                 ),
-                const SizedBox(height: 8),
-                // Show current spent so user can set budget intelligently
-                Consumer<BudgetProvider>(
-                  builder: (ctx, bp, _) {
-                    final project = bp.projects.firstWhere(
-                      (p) => p.id == widget.project.id,
-                      orElse: () => widget.project,
-                    );
-                    return Text(
-                      'Currently spent: ₹${project.totalExpenses.toStringAsFixed(0)}',
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 12,
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _phoneController,
+                  decoration: const InputDecoration(
+                    labelText: 'Customer Phone (WhatsApp)',
+                    prefixIcon: Icon(Icons.phone_outlined),
+                    hintText: 'e.g. +919876543210',
+                  ),
+                  keyboardType: TextInputType.phone,
+                  onFieldSubmitted: (_) => _submitData(),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton.icon(
+                        icon: const Icon(Icons.date_range),
+                        label: Text(
+                          _startDate == null
+                              ? 'Start Date'
+                              : DateFormat.yMMMd().format(_startDate!),
+                        ),
+                        onPressed: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: _startDate ?? DateTime.now(),
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime(2100),
+                          );
+                          if (picked != null) {
+                            setState(() => _startDate = picked);
+                          }
+                        },
                       ),
-                    );
-                  },
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextButton.icon(
+                        icon: const Icon(Icons.date_range),
+                        label: Text(
+                          _endDate == null
+                              ? 'End Date'
+                              : DateFormat.yMMMd().format(_endDate!),
+                        ),
+                        onPressed: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate:
+                                _endDate ?? _startDate ?? DateTime.now(),
+                            firstDate: _startDate ?? DateTime(2000),
+                            lastDate: DateTime(2100),
+                          );
+                          if (picked != null) {
+                            setState(() => _endDate = picked);
+                          }
+                        },
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 24),
                 Row(

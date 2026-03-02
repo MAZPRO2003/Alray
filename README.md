@@ -35,16 +35,32 @@ Alray is a modern, feature-rich real estate budget management application built 
 * `lib/routes/`: Centralized GoRouter configuration handling auth redirects.
 * `lib/services/`: Background & external integrations (`CallService`).
 
-## ⚙️ Running the App
+## ⚙️ Running and Building the App
 
 The application uses Android Flavors to separate Development and Production environments.
 
-**Development:**
+### Development
+
+**Run:**
 ```bash
 flutter run --flavor dev -t lib/main_dev.dart
 ```
 
-**Production:**
+**Build APK:**
+```bash
+flutter build apk --flavor dev -t lib/main_dev.dart
+```
+
+### Production
+
+**Run:**
 ```bash
 flutter run --flavor prod -t lib/main_prod.dart
 ```
+
+**Build APK:**
+```bash
+flutter build apk --flavor prod -t lib/main_prod.dart
+```
+
+**Note:** The generated `.apk` files will be output to your `build/app/outputs/flutter-apk/` directory automatically.

@@ -1,5 +1,25 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// A single timestamped note entry attached to a contact.
+class ContactNote {
+  final String text;
+  final DateTime timestamp;
+
+  const ContactNote({required this.text, required this.timestamp});
+
+  factory ContactNote.fromMap(Map<String, dynamic> map) {
+    return ContactNote(
+      text: map['text'] as String? ?? '',
+      timestamp: (map['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+    'text': text,
+    'timestamp': Timestamp.fromDate(timestamp),
+  };
+}
+
 class Contact {
   const Contact({
     required this.id,
@@ -9,17 +29,20 @@ class Contact {
     this.notes,
     this.callCount = 0,
     this.callHistory = const [],
+    // Legacy single note — kept for migration purposes, use noteLog going forward
     this.callNotes,
+    this.noteLog = const [],
   });
 
   final String id;
   final String name;
   final String role;
   final String phoneNumber;
-  final String? notes; // Initial creation notes
-  final int callCount; // Automated frequency tracking
-  final List<DateTime> callHistory; // Exact timestamps of each call
-  final String? callNotes; // Post-call discussion notes
+  final String? notes;
+  final int callCount;
+  final List<DateTime> callHistory;
+  final String? callNotes; // Legacy field — kept for backward compat
+  final List<ContactNote> noteLog; // New: list of timestamped notes
 
   factory Contact.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> snapshot,
@@ -39,20 +62,26 @@ class Contact {
               .toList() ??
           [],
       callNotes: data?['callNotes'],
+      noteLog:
+          (data?['noteLog'] as List<dynamic>?)
+              ?.map((m) => ContactNote.fromMap(m as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
   }
 
   Map<String, dynamic> toFirestore() {
     return {
-      if (name != null) "name": name,
-      if (role != null) "role": role,
-      if (phoneNumber != null) "phoneNumber": phoneNumber,
+      "name": name,
+      "role": role,
+      "phoneNumber": phoneNumber,
       if (notes != null) "notes": notes,
       "callCount": callCount,
       "callHistory": callHistory
           .map((date) => Timestamp.fromDate(date))
           .toList(),
       if (callNotes != null) "callNotes": callNotes,
+      "noteLog": noteLog.map((n) => n.toMap()).toList(),
     };
   }
 }

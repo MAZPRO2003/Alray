@@ -107,7 +107,7 @@ class ProdFirebaseOptions {
   // in the alray-prod Firebase project.
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyAvBdKQdbAucMcJBRzOwHzQYt_DzwHUaxI',
-    appId: '1:775183573814:android:7cf579945f64a578a2c997',
+    appId: '1:775183573814:ios:7cf579945f64a578a2c997',
     messagingSenderId: '775183573814',
     projectId: 'alray-prod',
     storageBucket: 'alray-prod.firebasestorage.app',
@@ -115,7 +115,7 @@ class ProdFirebaseOptions {
 
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyAvBdKQdbAucMcJBRzOwHzQYt_DzwHUaxI',
-    appId: '1:775183573814:android:7cf579945f64a578a2c997',
+    appId: '1:775183573814:ios:7cf579945f64a578a2c997',
     messagingSenderId: '775183573814',
     projectId: 'alray-prod',
     storageBucket: 'alray-prod.firebasestorage.app',
@@ -124,7 +124,7 @@ class ProdFirebaseOptions {
   // Web / Windows not yet registered — add these if you need web support
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyAvBdKQdbAucMcJBRzOwHzQYt_DzwHUaxI',
-    appId: '1:775183573814:android:7cf579945f64a578a2c997',
+    appId: '1:775183573814:web:7cf579945f64a578a2c997',
     messagingSenderId: '775183573814',
     projectId: 'alray-prod',
     storageBucket: 'alray-prod.firebasestorage.app',
@@ -132,7 +132,7 @@ class ProdFirebaseOptions {
 
   static const FirebaseOptions windows = FirebaseOptions(
     apiKey: 'AIzaSyAvBdKQdbAucMcJBRzOwHzQYt_DzwHUaxI',
-    appId: '1:775183573814:android:7cf579945f64a578a2c997',
+    appId: '1:775183573814:web:7cf579945f64a578a2c997',
     messagingSenderId: '775183573814',
     projectId: 'alray-prod',
     storageBucket: 'alray-prod.firebasestorage.app',

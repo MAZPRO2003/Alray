@@ -88,7 +88,7 @@ function App() {
         callCount: 0,
         callHistory: [],
         userId: 'WEB_INQUIRY', // Special ID for global visibility logic in provider
-        createdAt: serverTimestamp()
+        createdAt: new Date()
       });
 
       // The lead is automatically synced to the Tracker app via Firestore.

@@ -381,123 +381,138 @@ class _AllExpensesScreenState extends State<AllExpensesScreen> {
 
             // List of Transactions
             Expanded(
-              child: filteredList.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'No transactions found.',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: filteredList.length,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      itemBuilder: (ctx, index) {
-                        final item = filteredList[index];
-                        final isRevenue = item.data is Revenue;
-                        final color = isRevenue
-                            ? _categoryColor['revenue']!
-                            : _categoryColor[(item.data as Expense).category]!;
-                        final icon = isRevenue
-                            ? _categoryIcon['revenue']!
-                            : _categoryIcon[(item.data as Expense).category]!;
-
-                        // Determine Pending / Paid badge
-                        final bool isPending =
-                            !isRevenue &&
-                            pendingExpenseIds.contains(
-                              (item.data as Expense).id,
-                            );
-                        final String statusLabel = isRevenue
-                            ? 'Received'
-                            : (isPending ? 'Pending' : 'Paid');
-                        final Color statusColor = isRevenue
-                            ? Colors.blue
-                            : (isPending ? Colors.orange : Colors.green);
-
-                        return Card(
-                          margin: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 4,
-                          ),
-                          child: InkWell(
-                            onTap: () => TransactionDetailsDialog.show(
-                              context,
-                              item.data,
-                              item.projectName,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: color.withValues(alpha: 0.1),
-                                child: Icon(icon, color: color, size: 20),
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  await budgetProvider.fetchAndSetProjects();
+                },
+                child: filteredList.isEmpty
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: [
+                          SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.4,
+                            child: const Center(
+                              child: Text(
+                                'No transactions found.',
+                                style: TextStyle(color: Colors.grey),
                               ),
-                              title: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      isRevenue
-                                          ? "Customer Payment"
-                                          : (item.data as Expense)
-                                                .formattedCategory,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: statusColor.withValues(
-                                        alpha: 0.12,
-                                      ),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: statusColor.withValues(
-                                          alpha: 0.4,
+                            ),
+                          ),
+                        ],
+                      )
+                    : ListView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        itemCount: filteredList.length,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        itemBuilder: (ctx, index) {
+                          final item = filteredList[index];
+                          final isRevenue = item.data is Revenue;
+                          final color = isRevenue
+                              ? _categoryColor['revenue']!
+                              : _categoryColor[(item.data as Expense)
+                                    .category]!;
+                          final icon = isRevenue
+                              ? _categoryIcon['revenue']!
+                              : _categoryIcon[(item.data as Expense).category]!;
+
+                          // Determine Pending / Paid badge
+                          final bool isPending =
+                              !isRevenue &&
+                              pendingExpenseIds.contains(
+                                (item.data as Expense).id,
+                              );
+                          final String statusLabel = isRevenue
+                              ? 'Received'
+                              : (isPending ? 'Pending' : 'Paid');
+                          final Color statusColor = isRevenue
+                              ? Colors.blue
+                              : (isPending ? Colors.orange : Colors.green);
+
+                          return Card(
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 4,
+                            ),
+                            child: InkWell(
+                              onTap: () => TransactionDetailsDialog.show(
+                                context,
+                                item.data,
+                                item.projectName,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: color.withValues(alpha: 0.1),
+                                  child: Icon(icon, color: color, size: 20),
+                                ),
+                                title: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        isRevenue
+                                            ? "Customer Payment"
+                                            : (item.data as Expense)
+                                                  .formattedCategory,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
                                         ),
                                       ),
                                     ),
-                                    child: Text(
-                                      statusLabel,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: statusColor,
-                                        fontWeight: FontWeight.bold,
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: statusColor.withValues(
+                                          alpha: 0.12,
+                                        ),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: statusColor.withValues(
+                                            alpha: 0.4,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        statusLabel,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: statusColor,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                              subtitle: Text(
-                                isRevenue
-                                    ? '${(item.data as Revenue).description}\n${item.projectName}  •  ${DateFormat.yMMMd().format(item.date)}'
-                                    : (item.data as Expense).category ==
-                                          ExpenseCategory.material
-                                    ? '${item.projectName}  •  ${DateFormat.yMMMd().format(item.date)}'
-                                    : '${(item.data as Expense).description}\n${item.projectName}  •  ${DateFormat.yMMMd().format(item.date)}',
-                              ),
-                              isThreeLine: true,
-                              trailing: Text(
-                                CurrencyUtils.formatInr(
-                                  isRevenue
-                                      ? (item.data as Revenue).amount
-                                      : (item.data as Expense).amount,
+                                  ],
                                 ),
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: isRevenue ? Colors.blue : Colors.red,
-                                  fontSize: 15,
+                                subtitle: Text(
+                                  isRevenue
+                                      ? '${(item.data as Revenue).description}\n${item.projectName}  •  ${DateFormat.yMMMd().format(item.date)}'
+                                      : (item.data as Expense).category ==
+                                            ExpenseCategory.material
+                                      ? '${item.projectName}  •  ${DateFormat.yMMMd().format(item.date)}'
+                                      : '${(item.data as Expense).description}\n${item.projectName}  •  ${DateFormat.yMMMd().format(item.date)}',
+                                ),
+                                isThreeLine: true,
+                                trailing: Text(
+                                  CurrencyUtils.formatInr(
+                                    isRevenue
+                                        ? (item.data as Revenue).amount
+                                        : (item.data as Expense).amount,
+                                  ),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: isRevenue ? Colors.blue : Colors.red,
+                                    fontSize: 15,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ).animate().fade().slideX(begin: 0.1, end: 0);
-                      },
-                    ),
+                          ).animate().fade().slideX(begin: 0.1, end: 0);
+                        },
+                      ),
+              ),
             ),
           ],
         );

@@ -26,23 +26,27 @@ class Contact {
     required this.name,
     required this.role,
     required this.phoneNumber,
+    this.userId,
     this.notes,
     this.callCount = 0,
     this.callHistory = const [],
     // Legacy single note — kept for migration purposes, use noteLog going forward
     this.callNotes,
     this.noteLog = const [],
+    this.createdAt,
   });
 
   final String id;
   final String name;
   final String role;
   final String phoneNumber;
+  final String? userId;
   final String? notes;
   final int callCount;
   final List<DateTime> callHistory;
   final String? callNotes; // Legacy field — kept for backward compat
   final List<ContactNote> noteLog; // New: list of timestamped notes
+  final DateTime? createdAt;
 
   factory Contact.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> snapshot,
@@ -51,17 +55,21 @@ class Contact {
     final data = snapshot.data();
     return Contact(
       id: snapshot.id,
-      name: data?['name'],
-      role: data?['role'],
-      phoneNumber: data?['phoneNumber'],
-      notes: data?['notes'],
-      callCount: data?['callCount'] ?? 0,
+      name: data?['name'] as String? ?? 'Unnamed',
+      role: data?['role'] as String? ?? 'General',
+      userId: data?['userId'] as String?,
+      phoneNumber: data?['phoneNumber'] as String? ?? '',
+      notes: data?['notes'] as String?,
+      callCount: data?['callCount'] as int? ?? 0,
+      createdAt:
+          (data?['createdAt'] as Timestamp? ?? data?['timestamp'] as Timestamp?)
+              ?.toDate(),
       callHistory:
           (data?['callHistory'] as List<dynamic>?)
               ?.map((ts) => (ts as Timestamp).toDate())
               .toList() ??
           [],
-      callNotes: data?['callNotes'],
+      callNotes: data?['callNotes'] as String?,
       noteLog:
           (data?['noteLog'] as List<dynamic>?)
               ?.map((m) => ContactNote.fromMap(m as Map<String, dynamic>))
@@ -75,8 +83,12 @@ class Contact {
       "name": name,
       "role": role,
       "phoneNumber": phoneNumber,
+      if (userId != null) "userId": userId,
       if (notes != null) "notes": notes,
       "callCount": callCount,
+      "createdAt": createdAt != null
+          ? Timestamp.fromDate(createdAt!)
+          : FieldValue.serverTimestamp(),
       "callHistory": callHistory
           .map((date) => Timestamp.fromDate(date))
           .toList(),

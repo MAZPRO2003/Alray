@@ -491,227 +491,246 @@ class _DashboardScreenState extends State<DashboardScreen> {
             return const Center(child: Text('Error loading data!'));
           }
 
-          return Consumer<BudgetProvider>(
-            builder: (context, budgetProvider, child) {
+          return Consumer2<BudgetProvider, ContactsProvider>(
+            builder: (context, budgetProvider, contactsProvider, child) {
               final projects = budgetProvider.projects;
 
-              return CustomScrollView(
-                slivers: [
-                  SliverAppBar(
-                    expandedHeight: 100,
-                    floating: true,
-                    pinned: true,
-                    elevation: 0,
-                    backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                    flexibleSpace: FlexibleSpaceBar(
-                      titlePadding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 16,
-                      ),
-                      title: const Text(
-                        'Dashboard',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
+              return RefreshIndicator(
+                onRefresh: () async {
+                  await Future.wait([
+                    budgetProvider.fetchAndSetProjects(),
+                    contactsProvider.fetchContacts(),
+                  ]);
+                },
+                child: CustomScrollView(
+                  slivers: [
+                    SliverAppBar(
+                      expandedHeight: 100,
+                      floating: true,
+                      pinned: true,
+                      elevation: 0,
+                      backgroundColor: Theme.of(
+                        context,
+                      ).scaffoldBackgroundColor,
+                      flexibleSpace: FlexibleSpaceBar(
+                        titlePadding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 16,
                         ),
-                      ).animate().fadeIn(duration: 500.ms),
+                        title: const Text(
+                          'Dashboard',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ).animate().fadeIn(duration: 500.ms),
+                      ),
+                      actions: [
+                        IconButton(
+                          icon: const Icon(
+                            Icons.settings_outlined,
+                            color: Colors.black,
+                          ),
+                          onPressed: () => context.go('/settings'),
+                        ),
+                      ],
                     ),
-                    actions: [
-                      IconButton(
-                        icon: const Icon(
-                          Icons.settings_outlined,
-                          color: Colors.black,
-                        ),
-                        onPressed: () => context.go('/settings'),
-                      ),
-                    ],
-                  ),
-                  SliverToBoxAdapter(
-                    child: _buildHeader(
-                      context,
-                    ).animate().fadeIn().slideX(begin: -0.1, end: 0),
-                  ),
-                  SliverToBoxAdapter(
-                    child: const WeatherWidget().animate().fadeIn(delay: 50.ms),
-                  ),
-                  SliverToBoxAdapter(
-                    child: _buildSummarySection(
-                      context,
-                      budgetProvider,
-                    ).animate().fadeIn(delay: 100.ms),
-                  ),
-                  SliverToBoxAdapter(
-                    child: _buildQuickActions(
-                      context,
-                    ).animate().fadeIn(delay: 200.ms),
-                  ),
-                  SliverToBoxAdapter(
-                    child: _buildRecentActivity(
-                      context,
-                      budgetProvider,
-                    ).animate().fadeIn(delay: 300.ms),
-                  ),
-
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                    sliver: SliverToBoxAdapter(
-                      child: Text(
-                        'Active Projects',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.bold),
+                    SliverToBoxAdapter(
+                      child: _buildHeader(
+                        context,
+                      ).animate().fadeIn().slideX(begin: -0.1, end: 0),
+                    ),
+                    SliverToBoxAdapter(
+                      child: const WeatherWidget().animate().fadeIn(
+                        delay: 50.ms,
                       ),
                     ),
-                  ),
+                    SliverToBoxAdapter(
+                      child: _buildSummarySection(
+                        context,
+                        budgetProvider,
+                      ).animate().fadeIn(delay: 100.ms),
+                    ),
+                    SliverToBoxAdapter(
+                      child: _buildQuickActions(
+                        context,
+                      ).animate().fadeIn(delay: 200.ms),
+                    ),
+                    SliverToBoxAdapter(
+                      child: _buildRecentActivity(
+                        context,
+                        budgetProvider,
+                      ).animate().fadeIn(delay: 300.ms),
+                    ),
 
-                  if (projects.isEmpty)
-                    const SliverFillRemaining(
-                      child: Center(
-                        child: Text('No projects yet. Tap + to start!'),
-                      ),
-                    )
-                  else
                     SliverPadding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate((ctx, index) {
-                          final project = projects[index];
-                          return Card(
-                                margin: const EdgeInsets.only(bottom: 16),
-                                elevation: 2,
-                                shadowColor: Colors.black12,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: InkWell(
-                                  onTap: () => context.go(
-                                    '/projects/details/${project.id}',
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                      sliver: SliverToBoxAdapter(
+                        child: Text(
+                          'Active Projects',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+
+                    if (projects.isEmpty)
+                      const SliverFillRemaining(
+                        child: Center(
+                          child: Text('No projects yet. Tap + to start!'),
+                        ),
+                      )
+                    else
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        sliver: SliverList(
+                          delegate: SliverChildBuilderDelegate((ctx, index) {
+                            final project = projects[index];
+                            return Card(
+                                  margin: const EdgeInsets.only(bottom: 16),
+                                  elevation: 2,
+                                  shadowColor: Colors.black12,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
                                   ),
-                                  borderRadius: BorderRadius.circular(16),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Hero(
-                                              tag: 'project_icon_${project.id}',
-                                              child: Container(
-                                                padding: const EdgeInsets.all(
-                                                  10,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .primary
-                                                      .withValues(alpha: 0.1),
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
-                                                ),
-                                                child: Icon(
-                                                  Icons.business_outlined,
-                                                  color: Theme.of(
-                                                    context,
-                                                  ).colorScheme.primary,
+                                  child: InkWell(
+                                    onTap: () => context.go(
+                                      '/projects/details/${project.id}',
+                                    ),
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(16.0),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Hero(
+                                                tag:
+                                                    'project_icon_${project.id}',
+                                                child: Container(
+                                                  padding: const EdgeInsets.all(
+                                                    10,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .primary
+                                                        .withValues(alpha: 0.1),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          12,
+                                                        ),
+                                                  ),
+                                                  child: Icon(
+                                                    Icons.business_outlined,
+                                                    color: Theme.of(
+                                                      context,
+                                                    ).colorScheme.primary,
+                                                  ),
                                                 ),
                                               ),
-                                            ),
-                                            const SizedBox(width: 12),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Hero(
-                                                    tag:
-                                                        'project_name_${project.id}',
-                                                    child: Material(
-                                                      type: MaterialType
-                                                          .transparency,
-                                                      child: Text(
-                                                        project.name,
-                                                        style: const TextStyle(
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          fontSize: 18,
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Hero(
+                                                      tag:
+                                                          'project_name_${project.id}',
+                                                      child: Material(
+                                                        type: MaterialType
+                                                            .transparency,
+                                                        child: Text(
+                                                          project.name,
+                                                          style:
+                                                              const TextStyle(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                                fontSize: 18,
+                                                              ),
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
                                                         ),
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
                                                       ),
                                                     ),
-                                                  ),
-                                                  Text(
-                                                    'Budget: ${CurrencyUtils.formatInr(project.budget)}',
-                                                    style: TextStyle(
-                                                      color:
-                                                          Colors.grey.shade600,
-                                                      fontSize: 12,
+                                                    Text(
+                                                      'Budget: ${CurrencyUtils.formatInr(project.budget)}',
+                                                      style: TextStyle(
+                                                        color: Colors
+                                                            .grey
+                                                            .shade600,
+                                                        fontSize: 12,
+                                                      ),
                                                     ),
-                                                  ),
-                                                ],
+                                                  ],
+                                                ),
                                               ),
+                                              const Icon(
+                                                Icons.chevron_right,
+                                                color: Colors.grey,
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              _buildMiniStat(
+                                                'Spent',
+                                                project.totalExpenses,
+                                                Colors.red,
+                                              ),
+                                              _buildMiniStat(
+                                                'Remaining',
+                                                project.remainingBudget,
+                                                project.remainingBudget >= 0
+                                                    ? Colors.green
+                                                    : Colors.red,
+                                              ),
+                                              _buildHealthBadge(project),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 12),
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              8,
                                             ),
-                                            const Icon(
-                                              Icons.chevron_right,
-                                              color: Colors.grey,
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 16),
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            _buildMiniStat(
-                                              'Spent',
-                                              project.totalExpenses,
-                                              Colors.red,
-                                            ),
-                                            _buildMiniStat(
-                                              'Remaining',
-                                              project.remainingBudget,
-                                              project.remainingBudget >= 0
-                                                  ? Colors.green
+                                            child: LinearProgressIndicator(
+                                              value: project.budget > 0
+                                                  ? (project.totalExpenses /
+                                                            project.budget)
+                                                        .clamp(0.0, 1.0)
+                                                  : 0.0,
+                                              minHeight: 6,
+                                              backgroundColor:
+                                                  Colors.grey.shade200,
+                                              color:
+                                                  project.remainingBudget >= 0
+                                                  ? Theme.of(
+                                                      context,
+                                                    ).colorScheme.primary
                                                   : Colors.red,
                                             ),
-                                            _buildHealthBadge(project),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 12),
-                                        ClipRRect(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
                                           ),
-                                          child: LinearProgressIndicator(
-                                            value: project.budget > 0
-                                                ? (project.totalExpenses /
-                                                          project.budget)
-                                                      .clamp(0.0, 1.0)
-                                                : 0.0,
-                                            minHeight: 6,
-                                            backgroundColor:
-                                                Colors.grey.shade200,
-                                            color: project.remainingBudget >= 0
-                                                ? Theme.of(
-                                                    context,
-                                                  ).colorScheme.primary
-                                                : Colors.red,
-                                          ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                ),
-                              )
-                              .animate()
-                              .fadeIn(delay: (400 + index * 50).ms)
-                              .slideY(begin: 0.1, end: 0);
-                        }, childCount: projects.length),
+                                )
+                                .animate()
+                                .fadeIn(delay: (400 + index * 50).ms)
+                                .slideY(begin: 0.1, end: 0);
+                          }, childCount: projects.length),
+                        ),
                       ),
-                    ),
-                  const SliverToBoxAdapter(child: SizedBox(height: 80)),
-                ],
+                    const SliverToBoxAdapter(child: SizedBox(height: 80)),
+                  ],
+                ),
               );
             },
           );

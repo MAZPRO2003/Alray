@@ -49,154 +49,165 @@ class AnalyticsScreen extends StatelessWidget {
         tooltip: 'AI Chat Assistant',
         child: const Icon(Icons.smart_toy, color: Colors.white),
       ),
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 120,
-            floating: true,
-            pinned: true,
-            elevation: 0,
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-            flexibleSpace: FlexibleSpaceBar(
-              titlePadding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 16,
-              ),
-              title: const Text(
-                'Insights & Analytics',
-                style: TextStyle(
-                  color: Colors.black87,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.5,
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await provider.fetchAndSetProjects();
+        },
+        child: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              expandedHeight: 120,
+              floating: true,
+              pinned: true,
+              elevation: 0,
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              flexibleSpace: FlexibleSpaceBar(
+                titlePadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
                 ),
-              ).animate().fadeIn(duration: 500.ms),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildMainGradientCard(
-                    context,
-                    totalRevenue,
-                    totalSpent,
-                    profitMargin,
+                title: const Text(
+                  'Insights & Analytics',
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.5,
                   ),
-                  const SizedBox(height: 16),
-                  IntrinsicHeight(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(
-                          child: _buildStatCard(
-                            context,
-                            'Cash on Hand',
-                            CurrencyUtils.formatInr(totalRevenue - totalSpent),
-                            Icons.account_balance_wallet,
-                            Colors.teal,
-                          ).animate().fade().slideY(begin: 0.15),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _buildStatCard(
-                            context,
-                            'Avg Spent / Project',
-                            projects.isNotEmpty
-                                ? CurrencyUtils.formatInr(
-                                    totalSpent / projects.length,
-                                  )
-                                : '₹0',
-                            Icons.analytics,
-                            Colors.indigo,
-                          ).animate().fade().slideY(begin: 0.15),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  IntrinsicHeight(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(
-                          child: _buildStatCard(
-                            context,
-                            'Portfolio Budget',
-                            CurrencyUtils.formatInr(totalBudget),
-                            Icons.account_balance,
-                            Colors.blue,
-                          ).animate().fade().slideY(begin: 0.2),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _buildStatCard(
-                            context,
-                            'Avg Project Budget',
-                            projects.isNotEmpty
-                                ? CurrencyUtils.formatInr(
-                                    totalBudget / projects.length,
-                                  )
-                                : '₹0',
-                            Icons.pie_chart,
-                            Colors.deepOrange,
-                          ).animate().fade().slideY(begin: 0.2),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  IntrinsicHeight(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(
-                          child: _buildStatCard(
-                            context,
-                            'Active',
-                            projects.length.toString(),
-                            Icons.business,
-                            Colors.purple,
-                          ).animate().fade().slideY(begin: 0.25),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _buildStatCard(
-                            context,
-                            'Payables',
-                            CurrencyUtils.formatInr(totalOutstanding),
-                            Icons.receipt_long,
-                            Colors.orange,
-                          ).animate().fade().slideY(begin: 0.25),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildStatCard(
-                    context,
-                    'Profit Margin',
-                    '${profitMargin.toStringAsFixed(1)}%',
-                    Icons.trending_up,
-                    Colors.green,
-                  ).animate().fade().slideY(begin: 0.3),
-                  const SizedBox(height: 24),
-                  _buildBudgetProgressSection(context, totalBudget, totalSpent),
-                  const SizedBox(height: 24),
-                  _buildSpendByCategoryChart(context, expenses),
-                  const SizedBox(height: 24),
-                  _buildMonthlyCashFlow(context, expenses, revenues),
-                  const SizedBox(height: 24),
-                  _buildTopProjects(context, projects),
-                  const SizedBox(height: 24),
-                  _buildRecentTransactions(context, expenses, revenues),
-                  const SizedBox(height: 80), // Padding for bottom nav
-                ],
+                ).animate().fadeIn(duration: 500.ms),
               ),
             ),
-          ),
-        ],
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildMainGradientCard(
+                      context,
+                      totalRevenue,
+                      totalSpent,
+                      profitMargin,
+                    ),
+                    const SizedBox(height: 16),
+                    IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: _buildStatCard(
+                              context,
+                              'Cash on Hand',
+                              CurrencyUtils.formatInr(
+                                totalRevenue - totalSpent,
+                              ),
+                              Icons.account_balance_wallet,
+                              Colors.teal,
+                            ).animate().fade().slideY(begin: 0.15),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildStatCard(
+                              context,
+                              'Avg Spent / Project',
+                              projects.isNotEmpty
+                                  ? CurrencyUtils.formatInr(
+                                      totalSpent / projects.length,
+                                    )
+                                  : '₹0',
+                              Icons.analytics,
+                              Colors.indigo,
+                            ).animate().fade().slideY(begin: 0.15),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: _buildStatCard(
+                              context,
+                              'Portfolio Budget',
+                              CurrencyUtils.formatInr(totalBudget),
+                              Icons.account_balance,
+                              Colors.blue,
+                            ).animate().fade().slideY(begin: 0.2),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildStatCard(
+                              context,
+                              'Avg Project Budget',
+                              projects.isNotEmpty
+                                  ? CurrencyUtils.formatInr(
+                                      totalBudget / projects.length,
+                                    )
+                                  : '₹0',
+                              Icons.pie_chart,
+                              Colors.deepOrange,
+                            ).animate().fade().slideY(begin: 0.2),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: _buildStatCard(
+                              context,
+                              'Active',
+                              projects.length.toString(),
+                              Icons.business,
+                              Colors.purple,
+                            ).animate().fade().slideY(begin: 0.25),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildStatCard(
+                              context,
+                              'Payables',
+                              CurrencyUtils.formatInr(totalOutstanding),
+                              Icons.receipt_long,
+                              Colors.orange,
+                            ).animate().fade().slideY(begin: 0.25),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildStatCard(
+                      context,
+                      'Profit Margin',
+                      '${profitMargin.toStringAsFixed(1)}%',
+                      Icons.trending_up,
+                      Colors.green,
+                    ).animate().fade().slideY(begin: 0.3),
+                    const SizedBox(height: 24),
+                    _buildBudgetProgressSection(
+                      context,
+                      totalBudget,
+                      totalSpent,
+                    ),
+                    const SizedBox(height: 24),
+                    _buildSpendByCategoryChart(context, expenses),
+                    const SizedBox(height: 24),
+                    _buildMonthlyCashFlow(context, expenses, revenues),
+                    const SizedBox(height: 24),
+                    _buildTopProjects(context, projects),
+                    const SizedBox(height: 24),
+                    _buildRecentTransactions(context, expenses, revenues),
+                    const SizedBox(height: 80), // Padding for bottom nav
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

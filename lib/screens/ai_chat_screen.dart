@@ -54,8 +54,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
     final response = await _aiService.processNaturalLanguageQuery(
       text,
       provider.projects,
-      provider.expenses,
-      provider.revenues,
+      provider.allEntries,
       userId,
     );
 

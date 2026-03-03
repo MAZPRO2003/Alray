@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:alray_app/providers/budget_provider.dart';
-import 'package:alray_app/models/revenue.dart';
+import 'package:alray_app/models/construction_entry.dart';
 import 'package:intl/intl.dart';
 
 class AddRevenueDialog extends StatefulWidget {
@@ -42,11 +42,13 @@ class _AddRevenueDialogState extends State<AddRevenueDialog> {
 
     setState(() => _isLoading = true);
     try {
-      final newRevenue = Revenue(
-        id: '', // Firestore will assign the real ID
+      final newRevenue = ConstructionEntry(
         projectId: _selectedProjectId ?? '',
-        amount: enteredAmount,
+        transactionType: TransactionType.credit,
+        categoryId: EntryCategory.paymentReceived,
         description: _descriptionController.text.trim(),
+        rate: enteredAmount,
+        quantity: 1,
         date: _selectedDate,
         attachmentUrl: null,
       );
@@ -54,7 +56,7 @@ class _AddRevenueDialogState extends State<AddRevenueDialog> {
       await Provider.of<BudgetProvider>(
         context,
         listen: false,
-      ).addRevenue(newRevenue);
+      ).addEntry(newRevenue);
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {

@@ -3,24 +3,24 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import 'package:alray_app/providers/budget_provider.dart';
-import 'package:alray_app/models/expense.dart';
-import 'package:alray_app/models/revenue.dart';
+import 'package:alray_app/models/construction_entry.dart';
+import 'package:alray_app/models/project.dart';
 import 'package:alray_app/utils/currency_utils.dart';
 import 'package:alray_app/widgets/transaction_details_dialog.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 const _categoryIcon = {
   'revenue': Icons.handshake_outlined,
-  ExpenseCategory.contractor: Icons.construction,
-  ExpenseCategory.material: Icons.inventory_2_outlined,
-  ExpenseCategory.other: Icons.category_outlined,
+  'labor': Icons.construction,
+  'material': Icons.inventory_2_outlined,
+  'other': Icons.category_outlined,
 };
 
 const _categoryColor = {
   'revenue': Color(0xFF6750A4), // purple - revenue
-  ExpenseCategory.contractor: Color(0xFFE65100), // deep orange - workers
-  ExpenseCategory.material: Color(0xFF2E7D32), // green - material
-  ExpenseCategory.other: Color(0xFF0277BD), // blue - others
+  'labor': Color(0xFFE65100), // deep orange - workers
+  'material': Color(0xFF2E7D32), // green - material
+  'other': Color(0xFF0277BD), // blue - others
 };
 
 class AllExpensesScreen extends StatefulWidget {
@@ -102,21 +102,26 @@ class _AllExpensesScreenState extends State<AllExpensesScreen> {
         // Build the unified list of transactions
         final List<_TransactionItem> allTransactions = [];
 
-        // 1. Add global revenues
-        for (var r in budgetProvider.revenues) {
+        for (var entry in budgetProvider.allEntries) {
+          String pName = 'General';
+          if (entry.projectId.isNotEmpty) {
+            final p = budgetProvider.projects.firstWhere(
+              (p) => p.id == entry.projectId,
+              orElse: () => Project(
+                id: entry.projectId,
+                name: 'Unknown',
+                budget: 0,
+                entries: [],
+                milestones: [],
+                payables: [],
+                snagItems: [],
+              ),
+            );
+            pName = p.name;
+          }
           allTransactions.add(
-            _TransactionItem(data: r, projectName: 'General'),
+            _TransactionItem(data: entry, projectName: pName),
           );
-        }
-
-        // 2. Add project specific revenues and expenses
-        for (var p in budgetProvider.projects) {
-          for (var r in p.revenues) {
-            allTransactions.add(_TransactionItem(data: r, projectName: p.name));
-          }
-          for (var e in p.expenses) {
-            allTransactions.add(_TransactionItem(data: e, projectName: p.name));
-          }
         }
 
         // Sort by date newest first
@@ -129,11 +134,7 @@ class _AllExpensesScreenState extends State<AllExpensesScreen> {
                   .where(
                     (t) => _selectedProjectId == 'General'
                         ? t.projectName == 'General'
-                        : budgetProvider.projects.any(
-                            (p) =>
-                                p.id == _selectedProjectId &&
-                                p.name == t.projectName,
-                          ),
+                        : t.data.projectId == _selectedProjectId,
                   )
                   .toList();
 
@@ -144,17 +145,19 @@ class _AllExpensesScreenState extends State<AllExpensesScreen> {
         double totalCustom = 0;
 
         for (final item in projectFiltered) {
-          if (item.data is Revenue) {
-            totalRevenue += (item.data as Revenue).amount;
+          final entry = item.data;
+          if (entry.transactionType == TransactionType.credit) {
+            totalRevenue += entry.amount;
           } else {
-            final e = item.data as Expense;
-            if (e.category == ExpenseCategory.contractor) {
-              totalWorkers += e.amount;
+            if (entry.categoryId.endsWith('-L') ||
+                entry.categoryId == EntryCategory.planApproval) {
+              totalWorkers += entry.amount;
+            } else if (entry.categoryId.endsWith('-M') ||
+                entry.categoryId == EntryCategory.otherMiscMaterials) {
+              totalMaterial += entry.amount;
+            } else {
+              totalCustom += entry.amount;
             }
-            if (e.category == ExpenseCategory.material) {
-              totalMaterial += e.amount;
-            }
-            if (e.category == ExpenseCategory.other) totalCustom += e.amount;
           }
         }
 
@@ -162,9 +165,24 @@ class _AllExpensesScreenState extends State<AllExpensesScreen> {
         final categoryFiltered = _selectedFilter == null
             ? projectFiltered
             : projectFiltered.where((t) {
-                if (_selectedFilter == 'revenue') return t.data is Revenue;
-                if (t.data is Expense) {
-                  return (t.data as Expense).category == _selectedFilter;
+                final entry = t.data;
+                if (_selectedFilter == 'revenue')
+                  return entry.transactionType == TransactionType.credit;
+                if (entry.transactionType == TransactionType.expense) {
+                  if (_selectedFilter == 'labor') {
+                    return entry.categoryId.endsWith('-L') ||
+                        entry.categoryId == EntryCategory.planApproval;
+                  }
+                  if (_selectedFilter == 'material') {
+                    return entry.categoryId.endsWith('-M') ||
+                        entry.categoryId == EntryCategory.otherMiscMaterials;
+                  }
+                  if (_selectedFilter == 'other') {
+                    return !entry.categoryId.endsWith('-L') &&
+                        entry.categoryId != EntryCategory.planApproval &&
+                        !entry.categoryId.endsWith('-M') &&
+                        entry.categoryId != EntryCategory.otherMiscMaterials;
+                  }
                 }
                 return false;
               }).toList();
@@ -174,15 +192,16 @@ class _AllExpensesScreenState extends State<AllExpensesScreen> {
         for (var project in budgetProvider.projects) {
           final pendingPayableIds = project.payables
               .where((p) {
-                final paid = project.expenses
+                final paid = project.entries
                     .where((e) => e.payableId == p.id)
                     .fold(0.0, (sum, e) => sum + e.amount);
                 return (p.totalAmount - paid) > 0;
               })
               .map((p) => p.id)
               .toSet();
-          for (var e in project.expenses) {
-            if (e.payableId != null &&
+          for (var e in project.entries) {
+            if (e.transactionType == TransactionType.expense &&
+                e.payableId != null &&
                 pendingPayableIds.contains(e.payableId)) {
               pendingExpenseIds.add(e.id);
             }
@@ -194,12 +213,14 @@ class _AllExpensesScreenState extends State<AllExpensesScreen> {
             ? categoryFiltered
             : _paymentFilter == 'pending'
             ? categoryFiltered.where((t) {
-                if (t.data is Revenue) return false;
-                return pendingExpenseIds.contains((t.data as Expense).id);
+                if (t.data.transactionType == TransactionType.credit)
+                  return false;
+                return pendingExpenseIds.contains(t.data.id);
               }).toList()
             : categoryFiltered.where((t) {
-                if (t.data is Revenue) return true;
-                return !pendingExpenseIds.contains((t.data as Expense).id);
+                if (t.data.transactionType == TransactionType.credit)
+                  return true;
+                return !pendingExpenseIds.contains(t.data.id);
               }).toList();
 
         return Column(
@@ -221,22 +242,22 @@ class _AllExpensesScreenState extends State<AllExpensesScreen> {
                     _SummaryCard(
                       label: 'Workers',
                       amount: totalWorkers,
-                      color: _categoryColor[ExpenseCategory.contractor]!,
-                      icon: _categoryIcon[ExpenseCategory.contractor]!,
+                      color: _categoryColor['labor']!,
+                      icon: _categoryIcon['labor']!,
                     ).animate().fade(delay: 100.ms).slideY(begin: -0.1, end: 0),
                     const SizedBox(width: 8),
                     _SummaryCard(
                       label: 'Material',
                       amount: totalMaterial,
-                      color: _categoryColor[ExpenseCategory.material]!,
-                      icon: _categoryIcon[ExpenseCategory.material]!,
+                      color: _categoryColor['material']!,
+                      icon: _categoryIcon['material']!,
                     ).animate().fade(delay: 150.ms).slideY(begin: -0.1, end: 0),
                     const SizedBox(width: 8),
                     _SummaryCard(
                       label: 'Custom',
                       amount: totalCustom,
-                      color: _categoryColor[ExpenseCategory.other]!,
-                      icon: _categoryIcon[ExpenseCategory.other]!,
+                      color: _categoryColor['other']!,
+                      icon: _categoryIcon['other']!,
                     ).animate().fade(delay: 200.ms).slideY(begin: -0.1, end: 0),
                   ],
                 ),
@@ -311,32 +332,26 @@ class _AllExpensesScreenState extends State<AllExpensesScreen> {
                     const SizedBox(width: 8),
                     _FilterChip(
                       label: 'Workers',
-                      isSelected: _selectedFilter == ExpenseCategory.contractor,
-                      onTap: () => setState(
-                        () => _selectedFilter = ExpenseCategory.contractor,
-                      ),
-                      color: _categoryColor[ExpenseCategory.contractor]!,
-                      icon: _categoryIcon[ExpenseCategory.contractor]!,
+                      isSelected: _selectedFilter == 'labor',
+                      onTap: () => setState(() => _selectedFilter = 'labor'),
+                      color: _categoryColor['labor']!,
+                      icon: _categoryIcon['labor']!,
                     ),
                     const SizedBox(width: 8),
                     _FilterChip(
                       label: 'Material',
-                      isSelected: _selectedFilter == ExpenseCategory.material,
-                      onTap: () => setState(
-                        () => _selectedFilter = ExpenseCategory.material,
-                      ),
-                      color: _categoryColor[ExpenseCategory.material]!,
-                      icon: _categoryIcon[ExpenseCategory.material]!,
+                      isSelected: _selectedFilter == 'material',
+                      onTap: () => setState(() => _selectedFilter = 'material'),
+                      color: _categoryColor['material']!,
+                      icon: _categoryIcon['material']!,
                     ),
                     const SizedBox(width: 8),
                     _FilterChip(
                       label: 'Custom',
-                      isSelected: _selectedFilter == ExpenseCategory.other,
-                      onTap: () => setState(
-                        () => _selectedFilter = ExpenseCategory.other,
-                      ),
-                      color: _categoryColor[ExpenseCategory.other]!,
-                      icon: _categoryIcon[ExpenseCategory.other]!,
+                      isSelected: _selectedFilter == 'other',
+                      onTap: () => setState(() => _selectedFilter = 'other'),
+                      color: _categoryColor['other']!,
+                      icon: _categoryIcon['other']!,
                     ),
                   ],
                 ),
@@ -406,21 +421,32 @@ class _AllExpensesScreenState extends State<AllExpensesScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         itemBuilder: (ctx, index) {
                           final item = filteredList[index];
-                          final isRevenue = item.data is Revenue;
+                          final isRevenue =
+                              item.data.transactionType ==
+                              TransactionType.credit;
+                          String expenseKey = 'other';
+                          if (!isRevenue) {
+                            final e = item.data;
+                            if (e.categoryId.endsWith('-L') ||
+                                e.categoryId == EntryCategory.planApproval)
+                              expenseKey = 'labor';
+                            else if (e.categoryId.endsWith('-M') ||
+                                e.categoryId ==
+                                    EntryCategory.otherMiscMaterials)
+                              expenseKey = 'material';
+                          }
+
                           final color = isRevenue
                               ? _categoryColor['revenue']!
-                              : _categoryColor[(item.data as Expense)
-                                    .category]!;
+                              : _categoryColor[expenseKey]!;
                           final icon = isRevenue
                               ? _categoryIcon['revenue']!
-                              : _categoryIcon[(item.data as Expense).category]!;
+                              : _categoryIcon[expenseKey]!;
 
                           // Determine Pending / Paid badge
                           final bool isPending =
                               !isRevenue &&
-                              pendingExpenseIds.contains(
-                                (item.data as Expense).id,
-                              );
+                              pendingExpenseIds.contains(item.data.id);
                           final String statusLabel = isRevenue
                               ? 'Received'
                               : (isPending ? 'Pending' : 'Paid');
@@ -451,8 +477,7 @@ class _AllExpensesScreenState extends State<AllExpensesScreen> {
                                       child: Text(
                                         isRevenue
                                             ? "Customer Payment"
-                                            : (item.data as Expense)
-                                                  .formattedCategory,
+                                            : item.data.categoryId,
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 16,
@@ -488,19 +513,14 @@ class _AllExpensesScreenState extends State<AllExpensesScreen> {
                                 ),
                                 subtitle: Text(
                                   isRevenue
-                                      ? '${(item.data as Revenue).description}\n${item.projectName}  •  ${DateFormat.yMMMd().format(item.date)}'
-                                      : (item.data as Expense).category ==
-                                            ExpenseCategory.material
+                                      ? '${item.data.description}\n${item.projectName}  •  ${DateFormat.yMMMd().format(item.date)}'
+                                      : item.data.categoryId.endsWith('-M')
                                       ? '${item.projectName}  •  ${DateFormat.yMMMd().format(item.date)}'
-                                      : '${(item.data as Expense).description}\n${item.projectName}  •  ${DateFormat.yMMMd().format(item.date)}',
+                                      : '${item.data.description}\n${item.projectName}  •  ${DateFormat.yMMMd().format(item.date)}',
                                 ),
                                 isThreeLine: true,
                                 trailing: Text(
-                                  CurrencyUtils.formatInr(
-                                    isRevenue
-                                        ? (item.data as Revenue).amount
-                                        : (item.data as Expense).amount,
-                                  ),
+                                  CurrencyUtils.formatInr(item.data.amount),
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     color: isRevenue ? Colors.blue : Colors.red,
@@ -522,7 +542,7 @@ class _AllExpensesScreenState extends State<AllExpensesScreen> {
 }
 
 class _TransactionItem {
-  final dynamic data;
+  final ConstructionEntry data;
   final String projectName;
   DateTime get date => data.date;
   _TransactionItem({required this.data, required this.projectName});

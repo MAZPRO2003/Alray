@@ -3,8 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:alray_app/screens/main_tab_screen.dart';
 import 'package:alray_app/screens/dashboard_screen.dart';
-
-import 'package:alray_app/screens/all_expenses_screen.dart';
+import 'package:alray_app/screens/projects_list_screen.dart';
 import 'package:alray_app/screens/settings_screen.dart';
 import 'package:alray_app/screens/project_details_screen.dart';
 import 'package:alray_app/screens/contacts_screen.dart';
@@ -12,7 +11,8 @@ import 'package:alray_app/screens/contact_details_screen.dart';
 import 'package:alray_app/screens/profile_screen.dart';
 import 'package:alray_app/screens/login_screen.dart';
 import 'package:alray_app/screens/signup_screen.dart';
-import 'package:alray_app/screens/analytics_screen.dart';
+import 'package:alray_app/screens/attendance_screen.dart';
+import 'package:alray_app/screens/attendance_report_screen.dart';
 import 'package:alray_app/screens/ai_chat_screen.dart';
 import 'package:alray_app/providers/auth_provider.dart';
 
@@ -23,37 +23,20 @@ GoRouter? appRouter;
 GoRouter createAppRouter(AuthProvider authProvider) {
   appRouter = GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: '/projects',
+    initialLocation: '/home',
     refreshListenable: authProvider,
-    debugLogDiagnostics: kDebugMode, // Enable debug logging only in dev
+    debugLogDiagnostics: kDebugMode,
     redirect: (context, state) {
       final isAuthenticated = authProvider.isAuthenticated;
       final isLoggingIn = state.matchedLocation == '/login';
       final isSigningUp = state.matchedLocation == '/signup';
 
-      debugPrint(
-        'ROUTER REDIRECT: '
-        'isAuthenticated=$isAuthenticated, '
-        'loc=${state.matchedLocation}, '
-        'uri=${state.uri.toString()}',
-      );
-
       if (!isAuthenticated) {
-        // If not authenticated and not on an auth screen, go to login
-        if (!isLoggingIn && !isSigningUp) {
-          debugPrint('ROUTER REDIRECT: -> /login (not authenticated)');
-          return '/login';
-        }
-        // Allow staying on login or signup
+        if (!isLoggingIn && !isSigningUp) return '/login';
         return null;
       }
 
-      // If authenticated, don't allow auth screens
-      if (isLoggingIn || isSigningUp) {
-        debugPrint('ROUTER REDIRECT: -> /projects (already authenticated)');
-        return '/projects';
-      }
-
+      if (isLoggingIn || isSigningUp) return '/home';
       return null;
     },
     routes: [
@@ -72,11 +55,21 @@ GoRouter createAppRouter(AuthProvider authProvider) {
           return MainTabScreen(navigationShell: navigationShell);
         },
         branches: [
+          // Branch 0: Home
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/home',
+                builder: (context, state) => const DashboardScreen(),
+              ),
+            ],
+          ),
+          // Branch 1: Projects
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: '/projects',
-                builder: (context, state) => const DashboardScreen(),
+                builder: (context, state) => const ProjectsListScreen(),
                 routes: [
                   GoRoute(
                     path: 'details/:id',
@@ -90,14 +83,7 @@ GoRouter createAppRouter(AuthProvider authProvider) {
               ),
             ],
           ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/expenses',
-                builder: (context, state) => const AllExpensesScreen(),
-              ),
-            ],
-          ),
+          // Branch 2: People
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -128,14 +114,23 @@ GoRouter createAppRouter(AuthProvider authProvider) {
               ),
             ],
           ),
+          // Branch 3: Daily (Attendance)
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/analytics',
-                builder: (context, state) => const AnalyticsScreen(),
+                path: '/attendance',
+                builder: (context, state) => const AttendanceScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'reports',
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (context, state) => const AttendanceReportScreen(),
+                  ),
+                ],
               ),
             ],
           ),
+          // Branch 4: Settings
           StatefulShellBranch(
             routes: [
               GoRoute(

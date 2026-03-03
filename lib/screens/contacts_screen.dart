@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:alray_app/providers/contacts_provider.dart';
+import 'package:alray_app/providers/budget_provider.dart';
 import 'package:alray_app/widgets/add_contact_dialog.dart';
 import 'package:alray_app/widgets/add_contact_note_dialog.dart';
 import 'package:alray_app/models/contact.dart';
@@ -87,7 +88,7 @@ class _ContactsScreenState extends State<ContactsScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('People'),
+        title: const Text('Ledger'),
         bottom: TabBar(
           controller: _tabController,
           labelColor: Colors.white,
@@ -109,9 +110,10 @@ class _ContactsScreenState extends State<ContactsScreen>
           ],
         ),
       ),
-      body: Consumer<ContactsProvider>(
-        builder: (context, contactsProvider, child) {
+      body: Consumer2<ContactsProvider, BudgetProvider>(
+        builder: (context, contactsProvider, budgetProvider, child) {
           final allContacts = contactsProvider.contacts;
+          final allEntries = budgetProvider.allEntries;
 
           if (!_deepLinkHandled && allContacts.isNotEmpty) {
             _handleDeepLink(allContacts);
@@ -120,8 +122,8 @@ class _ContactsScreenState extends State<ContactsScreen>
           return TabBarView(
             controller: _tabController,
             children: [
-              _buildContactsTab(allContacts, isWorker: true),
-              _buildContactsTab(allContacts, isWorker: false),
+              _buildContactsTab(allContacts, allEntries, isWorker: true),
+              _buildContactsTab(allContacts, allEntries, isWorker: false),
             ],
           );
         },
@@ -148,7 +150,8 @@ class _ContactsScreenState extends State<ContactsScreen>
   }
 
   Widget _buildContactsTab(
-    List<Contact> allContacts, {
+    List<Contact> allContacts,
+    List<dynamic> allEntries, {
     required bool isWorker,
   }) {
     // Filter by type
@@ -286,15 +289,17 @@ class _ContactsScreenState extends State<ContactsScreen>
                   padding: const EdgeInsets.only(bottom: 80),
                   itemCount: finalFiltered.length,
                   itemBuilder: (ctx, index) =>
-                      _buildContactCard(finalFiltered[index]),
+                      _buildContactCard(finalFiltered[index], allEntries),
                 ),
         ),
       ],
     );
   }
 
-  Widget _buildContactCard(Contact contact) {
+  Widget _buildContactCard(Contact contact, List<dynamic> allEntries) {
     final isCustomer = contact.role == 'Customer';
+    final netBalance = contact.calculateNetBalance(allEntries);
+
     return Card(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           elevation: 1,
@@ -361,27 +366,43 @@ class _ContactsScreenState extends State<ContactsScreen>
                                 : Theme.of(context).colorScheme.primary,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.phone,
-                              size: 14,
-                              color: Colors.grey.shade600,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              contact.phoneNumber,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey.shade700,
-                              ),
-                            ),
-                          ],
-                        ),
                       ],
                     ),
                   ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '₹ ${netBalance.abs().toInt()}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: netBalance == 0
+                              ? Colors.grey
+                              : netBalance > 0
+                              ? Colors.red
+                              : Colors.green,
+                        ),
+                      ),
+                      Text(
+                        netBalance == 0
+                            ? 'Settled'
+                            : netBalance > 0
+                            ? 'You Owe'
+                            : 'You Will Get',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: netBalance == 0
+                              ? Colors.grey
+                              : netBalance > 0
+                              ? Colors.red
+                              : Colors.green,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 8),
                   const Icon(Icons.chevron_right, color: Colors.grey),
                 ],
               ),

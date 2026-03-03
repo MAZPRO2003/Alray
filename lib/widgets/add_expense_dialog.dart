@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:alray_app/providers/budget_provider.dart';
-import 'package:alray_app/models/expense.dart';
+import 'package:alray_app/models/construction_entry.dart';
+import 'package:alray_app/utils/currency_utils.dart';
 
 class AddExpenseDialog extends StatefulWidget {
   final String projectId;
@@ -16,83 +17,80 @@ class AddExpenseDialog extends StatefulWidget {
 class _AddExpenseDialogState extends State<AddExpenseDialog> {
   final _formKey = GlobalKey<FormState>();
   final _descController = TextEditingController();
-  final _amountController = TextEditingController();
-  final _customCategoryController = TextEditingController();
-  final _quantityController = TextEditingController();
-  final _unitController = TextEditingController();
-  final _materialTypeController = TextEditingController();
-  final _workerNameController = TextEditingController();
-  final _vendorNameController = TextEditingController();
+  final _rateController = TextEditingController();
+  final _qtyController = TextEditingController(text: '1.0');
+  final _chequeDetailsController = TextEditingController();
+
   DateTime _selectedDate = DateTime.now();
-  ExpenseCategory _selectedCategory = ExpenseCategory.contractor;
+  String _selectedCategory = EntryCategory.allCategories.first;
+  PaymentMode _selectedPaymentMethod = PaymentMode.cash;
   bool _isLoading = false;
 
   void _presentDatePicker() async {
     final now = DateTime.now();
-    final firstDate = DateTime(now.year - 1, now.month, now.day);
+    final firstDate = DateTime(now.year - 5, now.month, now.day);
     final pickedDate = await showDatePicker(
       context: context,
-      initialDate: now,
+      initialDate: _selectedDate,
       firstDate: firstDate,
       lastDate: now,
     );
-    setState(() {
-      if (pickedDate != null) _selectedDate = pickedDate;
-    });
+    if (pickedDate != null) {
+      setState(() {
+        _selectedDate = pickedDate;
+      });
+    }
   }
 
   Future<void> _submitData() async {
     if (!_formKey.currentState!.validate()) return;
 
     final enteredDesc = _descController.text.trim();
-    final enteredAmount = double.tryParse(_amountController.text);
-    final enteredCustomCategory = _customCategoryController.text.trim();
-    final enteredQuantity = double.tryParse(_quantityController.text);
-    final enteredUnit = _unitController.text.trim();
-    final enteredMaterialType = _materialTypeController.text.trim();
-    final enteredWorkerName = _workerNameController.text.trim();
-    final enteredVendorName = _vendorNameController.text.trim();
+    final enteredRate = double.tryParse(_rateController.text);
+    final enteredQty = double.tryParse(_qtyController.text);
 
-    if (enteredAmount == null || enteredAmount <= 0) {
+    if (enteredRate == null || enteredRate <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid amount.')),
+        const SnackBar(content: Text('Please enter a valid rate.')),
+      );
+      return;
+    }
+
+    if (enteredQty == null || enteredQty <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid quantity.')),
+      );
+      return;
+    }
+
+    if (_selectedPaymentMethod == PaymentMode.cheque &&
+        _chequeDetailsController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter cheque details.')),
       );
       return;
     }
 
     setState(() => _isLoading = true);
     try {
-      final newExpense = Expense(
+      final newEntry = ConstructionEntry(
         projectId: widget.projectId,
         description: enteredDesc,
-        amount: enteredAmount,
+        transactionType: TransactionType.expense,
+        categoryId: _selectedCategory,
+        rate: enteredRate,
+        quantity: enteredQty,
         date: _selectedDate,
-        category: _selectedCategory,
-        customCategoryName: _selectedCategory == ExpenseCategory.other
-            ? enteredCustomCategory
+        paymentMode: _selectedPaymentMethod,
+        referenceData: _selectedPaymentMethod == PaymentMode.cheque
+            ? _chequeDetailsController.text.trim()
             : null,
-        quantity: _selectedCategory == ExpenseCategory.material
-            ? enteredQuantity
-            : null,
-        unit: _selectedCategory == ExpenseCategory.material
-            ? enteredUnit
-            : null,
-        materialType: _selectedCategory == ExpenseCategory.material
-            ? enteredMaterialType
-            : null,
-        workerName: _selectedCategory == ExpenseCategory.contractor
-            ? enteredWorkerName
-            : null,
-        vendorName: _selectedCategory == ExpenseCategory.material
-            ? enteredVendorName
-            : null,
-        attachmentUrl: null,
       );
 
       await Provider.of<BudgetProvider>(
         context,
         listen: false,
-      ).addExpense(widget.projectId, newExpense);
+      ).addEntry(newEntry);
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
@@ -104,16 +102,18 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
     }
   }
 
+  double get _calculatedAmount {
+    final rate = double.tryParse(_rateController.text) ?? 0.0;
+    final qty = double.tryParse(_qtyController.text) ?? 0.0;
+    return rate * qty;
+  }
+
   @override
   void dispose() {
     _descController.dispose();
-    _amountController.dispose();
-    _customCategoryController.dispose();
-    _quantityController.dispose();
-    _unitController.dispose();
-    _materialTypeController.dispose();
-    _workerNameController.dispose();
-    _vendorNameController.dispose();
+    _rateController.dispose();
+    _qtyController.dispose();
+    _chequeDetailsController.dispose();
     super.dispose();
   }
 
@@ -144,165 +144,145 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
                 const SizedBox(height: 32),
 
                 // 1. Category Selection
-                DropdownButtonFormField<ExpenseCategory>(
-                  initialValue: _selectedCategory,
+                DropdownButtonFormField<String>(
+                  value: _selectedCategory,
                   decoration: const InputDecoration(
-                    labelText: 'Category',
+                    labelText: 'Expense Category / Sheet',
                     prefixIcon: Icon(Icons.category_outlined),
                   ),
-                  items: ExpenseCategory.values.map((category) {
-                    String label = category.name.toUpperCase();
-                    if (category == ExpenseCategory.contractor) {
-                      label = 'WORKERS';
-                    }
-                    if (category == ExpenseCategory.material) {
-                      label = 'MATERIAL';
-                    }
-                    if (category == ExpenseCategory.other) label = 'CUSTOM';
-
+                  items: EntryCategory.allCategories.map((category) {
                     return DropdownMenuItem(
                       value: category,
-                      child: Text(label),
+                      child: Text(category),
                     );
                   }).toList(),
                   onChanged: (value) {
-                    if (value == null) return;
-                    setState(() {
-                      _selectedCategory = value;
-                    });
+                    if (value != null) {
+                      setState(() {
+                        _selectedCategory = value;
+                      });
+                    }
                   },
                 ),
                 const SizedBox(height: 20),
 
-                // 2. Specialized Details
-                if (_selectedCategory == ExpenseCategory.material) ...[
-                  TextFormField(
-                    controller: _materialTypeController,
-                    decoration: const InputDecoration(
-                      labelText: 'Material Name',
-                      hintText: 'e.g. Cement, Steel, Sand',
-                      prefixIcon: Icon(Icons.inventory_2_outlined),
+                // 2. Quantity and Rate
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: TextFormField(
+                        controller: _qtyController,
+                        decoration: const InputDecoration(
+                          labelText: 'Quantity',
+                          prefixIcon: Icon(Icons.numbers),
+                        ),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        onChanged: (_) => setState(() {}),
+                        validator: (v) {
+                          if (v == null || v.isEmpty) return 'Req';
+                          if (double.tryParse(v) == null) return 'Inv';
+                          return null;
+                        },
+                      ),
                     ),
-                    textCapitalization: TextCapitalization.words,
-                    validator: (v) =>
-                        (_selectedCategory == ExpenseCategory.material &&
-                            (v == null || v.trim().isEmpty))
-                        ? 'Material name is required'
-                        : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _vendorNameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Vendor Name',
-                      hintText: 'Where was this bought?',
-                      prefixIcon: Icon(Icons.store_outlined),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 3,
+                      child: TextFormField(
+                        controller: _rateController,
+                        decoration: const InputDecoration(
+                          labelText: 'Rate (₹)',
+                          prefixIcon: Icon(Icons.currency_rupee),
+                        ),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        onChanged: (_) => setState(() {}),
+                        validator: (v) {
+                          if (v == null || v.isEmpty) return 'Required';
+                          if (double.tryParse(v) == null) return 'Invalid';
+                          return null;
+                        },
+                      ),
                     ),
-                    textCapitalization: TextCapitalization.words,
-                  ),
-                  const SizedBox(height: 20),
-                ],
-                if (_selectedCategory == ExpenseCategory.contractor) ...[
-                  TextFormField(
-                    controller: _workerNameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Contractor / Worker Name',
-                      prefixIcon: Icon(Icons.person_outline),
-                    ),
-                    textCapitalization: TextCapitalization.words,
-                    validator: (v) =>
-                        (_selectedCategory == ExpenseCategory.contractor &&
-                            (v == null || v.trim().isEmpty))
-                        ? 'Worker name is required'
-                        : null,
-                  ),
-                  const SizedBox(height: 20),
-                ],
-                if (_selectedCategory == ExpenseCategory.other) ...[
-                  TextFormField(
-                    controller: _customCategoryController,
-                    decoration: const InputDecoration(
-                      labelText: 'Name',
-                      hintText: 'Enter Name',
-                      prefixIcon: Icon(Icons.label_outline),
-                    ),
-                    textCapitalization: TextCapitalization.words,
-                    validator: (v) =>
-                        (_selectedCategory == ExpenseCategory.other &&
-                            (v == null || v.trim().isEmpty))
-                        ? 'Category name is required'
-                        : null,
-                  ),
-                  const SizedBox(height: 20),
-                ],
-
-                // 3. Amount & Measurement
-                TextFormField(
-                  controller: _amountController,
-                  decoration: const InputDecoration(
-                    labelText: 'Amount (₹)',
-                    hintText: 'e.g. 50000',
-                    prefixIcon: Icon(Icons.currency_rupee),
-                  ),
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Amount is required';
-                    final parsed = double.tryParse(v);
-                    if (parsed == null || parsed <= 0) {
-                      return 'Enter a valid positive number';
-                    }
-                    return null;
-                  },
+                  ],
                 ),
-                if (_selectedCategory == ExpenseCategory.material) ...[
-                  const SizedBox(height: 16),
-                  Row(
+                const SizedBox(height: 12),
+
+                // Calculated Amount Display
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(
-                        flex: 2,
-                        child: TextFormField(
-                          controller: _quantityController,
-                          decoration: const InputDecoration(
-                            labelText: 'Quantity',
-                            prefixIcon: Icon(Icons.numbers),
-                          ),
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          validator: (v) =>
-                              (_selectedCategory == ExpenseCategory.material &&
-                                  (v == null ||
-                                      double.tryParse(v) == null ||
-                                      double.parse(v) <= 0))
-                              ? 'Enter qty'
-                              : null,
+                      const Text(
+                        'Total Amount:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 3,
-                        child: TextFormField(
-                          controller: _unitController,
-                          decoration: const InputDecoration(
-                            labelText: 'Unit',
-                            hintText: 'Bags, Nos, etc.',
-                          ),
-                          textCapitalization: TextCapitalization.words,
-                          validator: (v) =>
-                              (_selectedCategory == ExpenseCategory.material &&
-                                  (v == null || v.trim().isEmpty))
-                              ? 'Enter unit'
-                              : null,
+                      Text(
+                        CurrencyUtils.formatInr(_calculatedAmount),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                          fontSize: 16,
                         ),
                       ),
                     ],
                   ),
-                ],
+                ),
                 const SizedBox(height: 20),
 
-                // 4. Supplementary Info
+                // 3. Payment Method
+                DropdownButtonFormField<PaymentMode>(
+                  value: _selectedPaymentMethod,
+                  decoration: const InputDecoration(
+                    labelText: 'Payment Method',
+                    prefixIcon: Icon(Icons.payment),
+                  ),
+                  items: PaymentMode.values.map((method) {
+                    return DropdownMenuItem(
+                      value: method,
+                      child: Text(method.name.toUpperCase()),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _selectedPaymentMethod = value;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 20),
+
+                // Cheque Details (Conditionally visible)
+                if (_selectedPaymentMethod == PaymentMode.cheque) ...[
+                  TextFormField(
+                    controller: _chequeDetailsController,
+                    decoration: const InputDecoration(
+                      labelText: 'Cheque Details',
+                      hintText: 'e.g. Chq No. 123456, HDFC Bank',
+                      prefixIcon: Icon(Icons.account_balance),
+                    ),
+                    textCapitalization: TextCapitalization.words,
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Required for cheque'
+                        : null,
+                  ),
+                  const SizedBox(height: 20),
+                ],
+
+                // 4. Description
                 TextFormField(
                   controller: _descController,
                   decoration: const InputDecoration(
@@ -313,8 +293,11 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
                   validator: (v) => (v == null || v.trim().isEmpty)
                       ? 'Description is required'
                       : null,
+                  maxLines: 2,
                 ),
                 const SizedBox(height: 20),
+
+                // 5. Date Picker
                 InkWell(
                   onTap: _presentDatePicker,
                   borderRadius: BorderRadius.circular(16),
@@ -365,6 +348,8 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
                   ),
                 ),
                 const SizedBox(height: 32),
+
+                // Actions
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -386,7 +371,7 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text('Save'),
+                          : const Text('Save Expense'),
                     ),
                   ],
                 ),

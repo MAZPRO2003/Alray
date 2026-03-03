@@ -123,24 +123,17 @@ class TransactionDetailsDialog extends StatelessWidget {
     final e = transaction as Expense;
     final List<Widget> details = [];
 
-    if (e.category == ExpenseCategory.material) {
-      if (e.materialType != null) {
-        details.add(_buildDetailRow('Material', e.materialType!));
-      }
-      if (e.vendorName != null) {
-        details.add(_buildDetailRow('Vendor', e.vendorName!));
-      }
-      if (e.quantity != null && e.unit != null) {
-        details.add(_buildDetailRow('Quantity', '${e.quantity} ${e.unit}'));
-      }
-    } else if (e.category == ExpenseCategory.contractor) {
-      if (e.workerName != null) {
-        details.add(_buildDetailRow('Worker/Contractor', e.workerName!));
-      }
-    } else if (e.category == ExpenseCategory.other) {
-      if (e.customCategoryName != null) {
-        details.add(_buildDetailRow('Custom Category', e.customCategoryName!));
-      }
+    details.add(_buildDetailRow('Category', e.spreadsheetCategory));
+    if (e.quantity != 1.0) {
+      details.add(_buildDetailRow('Quantity', e.quantity.toStringAsFixed(2)));
+      details.add(_buildDetailRow('Rate', CurrencyUtils.formatInr(e.rate)));
+    }
+    details.add(
+      _buildDetailRow('Payment Form', e.paymentMethod.name.toUpperCase()),
+    );
+
+    if (e.paymentMethod == PaymentMethod.cheque && e.chequeDetails != null) {
+      details.add(_buildDetailRow('Cheque Details', e.chequeDetails!));
     }
 
     return details;
@@ -148,25 +141,19 @@ class TransactionDetailsDialog extends StatelessWidget {
 
   Color _getExpenseColor() {
     final e = transaction as Expense;
-    switch (e.category) {
-      case ExpenseCategory.contractor:
-        return Colors.orange;
-      case ExpenseCategory.material:
-        return Colors.green;
-      case ExpenseCategory.other:
-        return Colors.blue;
-    }
+    if (e.spreadsheetCategory.endsWith('-M')) return Colors.green;
+    if (e.spreadsheetCategory.endsWith('-L') ||
+        e.spreadsheetCategory == ExpenseCategories.approval)
+      return Colors.orange;
+    return Colors.blue;
   }
 
   String _getExpenseTitle() {
     final e = transaction as Expense;
-    switch (e.category) {
-      case ExpenseCategory.contractor:
-        return 'Workers';
-      case ExpenseCategory.material:
-        return 'Material';
-      case ExpenseCategory.other:
-        return 'Custom';
-    }
+    if (e.spreadsheetCategory.endsWith('-M')) return 'Material';
+    if (e.spreadsheetCategory.endsWith('-L') ||
+        e.spreadsheetCategory == ExpenseCategories.approval)
+      return 'Workers';
+    return 'Custom';
   }
 }

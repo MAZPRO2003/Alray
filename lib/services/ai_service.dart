@@ -2,8 +2,7 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:alray_app/models/project.dart';
-import 'package:alray_app/models/expense.dart';
-import 'package:alray_app/models/revenue.dart';
+import 'package:alray_app/models/construction_entry.dart';
 import 'package:intl/intl.dart';
 
 class AiService {
@@ -72,8 +71,7 @@ class AiService {
   Future<String> processNaturalLanguageQuery(
     String query,
     List<Project> allProjects,
-    List<Expense> allExpenses,
-    List<Revenue> allRevenues,
+    List<ConstructionEntry> allEntries,
     String? userId,
   ) async {
     final apiKey = await getApiKey(userId);
@@ -104,14 +102,18 @@ class AiService {
       }
 
       contextBuilder.writeln('\n--- EXPENSES ---');
-      for (var e in allExpenses) {
+      for (var e in allEntries.where(
+        (e) => e.transactionType == TransactionType.expense,
+      )) {
         contextBuilder.writeln(
-          '- ${e.description}: ${e.amount} on ${DateFormat('yyyy-MM-dd').format(e.date)} (Category: ${e.category.name})',
+          '- ${e.description}: ${e.amount} on ${DateFormat('yyyy-MM-dd').format(e.date)} (Category: ${e.categoryId})',
         );
       }
 
       contextBuilder.writeln('\n--- REVENUES ---');
-      for (var r in allRevenues) {
+      for (var r in allEntries.where(
+        (e) => e.transactionType == TransactionType.credit,
+      )) {
         contextBuilder.writeln(
           '- Received ${r.amount} on ${DateFormat('yyyy-MM-dd').format(r.date)}',
         );
@@ -175,11 +177,20 @@ class AiService {
       }
 
       contextBuilder.writeln('\n--- RECENT EXPENSES ---');
-      final sortedExpenses = List.from(project.expenses)
-        ..sort((a, b) => b.date.compareTo(a.date));
+      final sortedExpenses =
+          List.from(
+            project.entries.where(
+              (e) => e.transactionType == TransactionType.expense,
+            ),
+          )..sort(
+            (a, b) => (b as ConstructionEntry).date.compareTo(
+              (a as ConstructionEntry).date,
+            ),
+          );
       for (var e in sortedExpenses.take(5)) {
+        final entry = e as ConstructionEntry;
         contextBuilder.writeln(
-          '- ${e.description}: ${e.amount} (${e.category.name})',
+          '- ${entry.description}: ${entry.amount} (${entry.categoryId})',
         );
       }
 

@@ -1,61 +1,57 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:alray_app/models/project.dart';
-import 'package:alray_app/models/expense.dart';
-import 'package:alray_app/models/revenue.dart';
+import 'package:alray_app/models/construction_entry.dart';
 import 'package:alray_app/models/milestone.dart';
 import 'package:alray_app/models/payable.dart';
 import 'package:alray_app/models/snag_item.dart';
 
 class BudgetProvider with ChangeNotifier {
   List<Project> _projects = [];
-  List<Revenue> _revenues = []; // Global/Unlinked revenues
+  List<ConstructionEntry> _globalEntries = []; // Unlinked credits/revenues
   String? _userId;
+  String? _selectedProjectId;
   bool _isLoading = false;
   bool _hasLoaded = false;
   Future<void>? _activeFetch;
 
   List<Project> get projects => [..._projects];
 
-  List<Revenue> get revenues {
-    List<Revenue> allRevs = [..._revenues];
-    for (var p in _projects) {
-      allRevs.addAll(p.revenues);
-    }
-    return allRevs;
-  }
+  List<ConstructionEntry> get globalEntries => [..._globalEntries];
 
-  List<Expense> get expenses {
-    List<Expense> allExps = [];
+  List<ConstructionEntry> get allEntries {
+    List<ConstructionEntry> list = [..._globalEntries];
     for (var p in _projects) {
-      allExps.addAll(p.expenses);
+      list.addAll(p.entries);
     }
-    return allExps;
+    return list;
   }
 
   bool get isLoading => _isLoading;
+  String? get currentUserId => _userId;
   bool get hasLoaded => _hasLoaded;
+  String? get selectedProjectId => _selectedProjectId;
+
+  void selectProject(String? id) {
+    if (_selectedProjectId != id) {
+      _selectedProjectId = id;
+      notifyListeners();
+    }
+  }
 
   double get totalMonthlyReturn {
     final now = DateTime.now();
-
-    // 1. Global Revenue
-    double totalRev = _revenues
-        .where((r) => r.date.year == now.year && r.date.month == now.month)
-        .fold(0.0, (total, item) => total + item.amount);
-
+    double totalRev = 0;
     double totalExp = 0;
 
-    for (var p in _projects) {
-      // 2. Project Revenues
-      totalRev += p.revenues
-          .where((r) => r.date.year == now.year && r.date.month == now.month)
-          .fold(0.0, (total, item) => total + item.amount);
-
-      // 3. Project Expenses
-      totalExp += p.expenses
-          .where((e) => e.date.year == now.year && e.date.month == now.month)
-          .fold(0.0, (total, item) => total + item.amount);
+    for (var entry in allEntries) {
+      if (entry.date.year == now.year && entry.date.month == now.month) {
+        if (entry.transactionType == TransactionType.credit) {
+          totalRev += entry.amount;
+        } else {
+          totalExp += entry.amount;
+        }
+      }
     }
 
     return totalRev - totalExp;
@@ -63,21 +59,17 @@ class BudgetProvider with ChangeNotifier {
 
   double get totalYearlyReturn {
     final now = DateTime.now();
-
-    double totalRev = _revenues
-        .where((r) => r.date.year == now.year)
-        .fold(0.0, (total, item) => total + item.amount);
-
+    double totalRev = 0;
     double totalExp = 0;
 
-    for (var p in _projects) {
-      totalRev += p.revenues
-          .where((r) => r.date.year == now.year)
-          .fold(0.0, (total, item) => total + item.amount);
-
-      totalExp += p.expenses
-          .where((e) => e.date.year == now.year)
-          .fold(0.0, (total, item) => total + item.amount);
+    for (var entry in allEntries) {
+      if (entry.date.year == now.year) {
+        if (entry.transactionType == TransactionType.credit) {
+          totalRev += entry.amount;
+        } else {
+          totalExp += entry.amount;
+        }
+      }
     }
 
     return totalRev - totalExp;
@@ -94,9 +86,8 @@ class BudgetProvider with ChangeNotifier {
       _userId = uid;
       _hasLoaded = false;
       _projects = [];
-      _revenues = [];
+      _globalEntries = [];
       if (uid != null) {
-        // Defer to avoid "setState() called during build" from proxy provider update
         Future.microtask(() => fetchAndSetProjects());
       } else {
         Future.microtask(() => notifyListeners());
@@ -108,7 +99,6 @@ class BudgetProvider with ChangeNotifier {
 
   Future<void> fetchAndSetProjects() async {
     if (_activeFetch != null) return _activeFetch!;
-
     _activeFetch = _performFetch();
     return _activeFetch!;
   }
@@ -138,6 +128,10 @@ class BudgetProvider with ChangeNotifier {
             .where('userId', isEqualTo: _userId)
             .get(),
         _firestore
+            .collection('entries')
+            .where('userId', isEqualTo: _userId)
+            .get(),
+        _firestore
             .collection('milestones')
             .where('userId', isEqualTo: _userId)
             .get(),
@@ -154,17 +148,28 @@ class BudgetProvider with ChangeNotifier {
       final projectsSnapshot = results[0];
       final expensesSnapshot = results[1];
       final revenuesSnapshot = results[2];
-      final milestonesSnapshot = results[3];
-      final payablesSnapshot = results[4];
-      final snagsSnapshot = results[5];
+      final entriesSnapshot = results[3];
+      final milestonesSnapshot = results[4];
+      final payablesSnapshot = results[5];
+      final snagsSnapshot = results[6];
 
-      final List<Expense> allExpenses = expensesSnapshot.docs
-          .map((doc) => Expense.fromJson(doc.data(), doc.id))
-          .toList();
+      final List<ConstructionEntry> combinedEntries = [];
 
-      final List<Revenue> allRevenues = revenuesSnapshot.docs
-          .map((doc) => Revenue.fromJson(doc.data(), doc.id))
-          .toList();
+      combinedEntries.addAll(
+        expensesSnapshot.docs.map(
+          (doc) => ConstructionEntry.fromJson(doc.data(), doc.id),
+        ),
+      );
+      combinedEntries.addAll(
+        revenuesSnapshot.docs.map(
+          (doc) => ConstructionEntry.fromJson(doc.data(), doc.id),
+        ),
+      );
+      combinedEntries.addAll(
+        entriesSnapshot.docs.map(
+          (doc) => ConstructionEntry.fromJson(doc.data(), doc.id),
+        ),
+      );
 
       final List<Milestone> allMilestones = milestonesSnapshot.docs
           .map((doc) => Milestone.fromJson(doc.data(), doc.id))
@@ -178,13 +183,9 @@ class BudgetProvider with ChangeNotifier {
           .map((doc) => SnagItem.fromJson(doc.data(), doc.id))
           .toList();
 
-      // Separate revenues into "global" (no projectId) and "project-specific"
       final List<Project> loadedProjects = projectsSnapshot.docs.map((doc) {
-        final projectExpenses = allExpenses
+        final projectEntries = combinedEntries
             .where((e) => e.projectId == doc.id)
-            .toList();
-        final projectRevenues = allRevenues
-            .where((r) => r.projectId == doc.id)
             .toList();
         final projectMilestones = allMilestones
             .where((m) => m.projectId == doc.id)
@@ -196,28 +197,33 @@ class BudgetProvider with ChangeNotifier {
             .where((s) => s.projectId == doc.id)
             .toList();
 
-        // Sort milestones by date ascending (oldest first, new ones go down)
         projectMilestones.sort(
           (a, b) => a.dateCreated.compareTo(b.dateCreated),
         );
-
-        // Sort snags by date descending
         projectSnags.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
         return Project.fromJson(
           doc.data(),
           doc.id,
-          projectExpenses,
-          projectRevenues,
+          projectEntries,
           projectMilestones,
           projectPayables,
           projectSnags,
         );
       }).toList();
 
-      // Global revenues are those with an empty or non-existent projectId
-      _revenues = allRevenues.where((r) => r.projectId.isEmpty).toList();
+      _globalEntries = combinedEntries
+          .where((e) => e.projectId.isEmpty)
+          .toList();
       _projects = loadedProjects;
+
+      if (_selectedProjectId == null && _projects.isNotEmpty) {
+        _selectedProjectId = _projects.first.id;
+      } else if (_selectedProjectId != null &&
+          !_projects.any((p) => p.id == _selectedProjectId)) {
+        _selectedProjectId = _projects.isNotEmpty ? _projects.first.id : null;
+      }
+
       _isLoading = false;
       _hasLoaded = true;
       _activeFetch = null;
@@ -264,8 +270,7 @@ class BudgetProvider with ChangeNotifier {
       startDate: startDate,
       endDate: endDate,
       customerPhone: customerPhone,
-      expenses: [],
-      revenues: [],
+      entries: [],
       milestones: [],
       payables: [],
       snagItems: [],
@@ -307,8 +312,7 @@ class BudgetProvider with ChangeNotifier {
         startDate: startDate,
         endDate: endDate,
         customerPhone: customerPhone,
-        expenses: old.expenses,
-        revenues: old.revenues,
+        entries: old.entries,
         milestones: old.milestones,
         payables: old.payables,
         snagItems: old.snagItems,
@@ -328,49 +332,23 @@ class BudgetProvider with ChangeNotifier {
     try {
       await _firestore.collection('projects').doc(projectId).delete();
 
-      // Cleanup related expenses
-      final expensesSnapshot = await _firestore
-          .collection('expenses')
-          .where('projectId', isEqualTo: projectId)
-          .get();
-      for (var doc in expensesSnapshot.docs) {
-        await doc.reference.delete();
-      }
-
-      // Cleanup related revenues
-      final revenuesSnapshot = await _firestore
-          .collection('revenues')
-          .where('projectId', isEqualTo: projectId)
-          .get();
-      for (var doc in revenuesSnapshot.docs) {
-        await doc.reference.delete();
-      }
-
-      // Cleanup related milestones
-      final milestonesSnapshot = await _firestore
-          .collection('milestones')
-          .where('projectId', isEqualTo: projectId)
-          .get();
-      for (var doc in milestonesSnapshot.docs) {
-        await doc.reference.delete();
-      }
-
-      // Cleanup related payables
-      final payablesSnapshot = await _firestore
-          .collection('payables')
-          .where('projectId', isEqualTo: projectId)
-          .get();
-      for (var doc in payablesSnapshot.docs) {
-        await doc.reference.delete();
-      }
-
-      // Cleanup related snags
-      final snagsSnapshot = await _firestore
-          .collection('snags')
-          .where('projectId', isEqualTo: projectId)
-          .get();
-      for (var doc in snagsSnapshot.docs) {
-        await doc.reference.delete();
+      // We might have legacy expenses/revenues to delete as well
+      final collections = [
+        'expenses',
+        'revenues',
+        'entries',
+        'milestones',
+        'payables',
+        'snags',
+      ];
+      for (var coll in collections) {
+        final snap = await _firestore
+            .collection(coll)
+            .where('projectId', isEqualTo: projectId)
+            .get();
+        for (var doc in snap.docs) {
+          await doc.reference.delete();
+        }
       }
     } catch (e, st) {
       debugPrint('removeProject error: $e\n$st');
@@ -378,104 +356,53 @@ class BudgetProvider with ChangeNotifier {
     }
   }
 
-  // ── Weather History ────────────────────────────────────────────────────────
-  // The fetchWeatherForProject method is removed as per instructions.
+  // ── Unified Entries ────────────────────────────────────────────────────────
 
-  // ── Expenses ───────────────────────────────────────────────────────────────
-
-  Future<void> addExpense(String projectId, Expense expense) async {
+  Future<void> addEntry(ConstructionEntry entry) async {
     if (_userId == null) return;
-    final data = expense.toJson();
+    final data = entry.toJson();
     data['userId'] = _userId;
 
-    final docRef = await _firestore.collection('expenses').add(data);
+    // Use unified 'entries' collection for new data
+    final docRef = await _firestore.collection('entries').add(data);
 
-    final projectIndex = _projects.indexWhere((p) => p.id == projectId);
-    if (projectIndex >= 0) {
-      final addedExpense = Expense(
-        id: docRef.id,
-        projectId: expense.projectId,
-        description: expense.description,
-        amount: expense.amount,
-        date: expense.date,
-        category: expense.category,
-        customCategoryName: expense.customCategoryName,
-        quantity: expense.quantity,
-        unit: expense.unit,
-        materialType: expense.materialType,
-        workerName: expense.workerName,
-        vendorName: expense.vendorName,
-        attachmentUrl: expense.attachmentUrl,
-        payableId: expense.payableId,
-      );
-      _projects[projectIndex].expenses.add(addedExpense);
-      notifyListeners();
-    }
-  }
-
-  Future<void> removeExpense(String projectId, String expenseId) async {
-    final projectIndex = _projects.indexWhere((p) => p.id == projectId);
-
-    if (projectIndex >= 0) {
-      final expenseIndex = _projects[projectIndex].expenses.indexWhere(
-        (e) => e.id == expenseId,
-      );
-      if (expenseIndex >= 0) {
-        _projects[projectIndex].expenses.removeAt(expenseIndex);
-        notifyListeners();
-      }
-    }
-
-    try {
-      await _firestore.collection('expenses').doc(expenseId).delete();
-    } catch (e, st) {
-      debugPrint('removeExpense error: $e\n$st');
-      await fetchAndSetProjects();
-    }
-  }
-
-  // ── Revenues ───────────────────────────────────────────────────────────────
-
-  Future<void> addRevenue(Revenue revenue) async {
-    if (_userId == null) return;
-    final data = revenue.toJson();
-    data['userId'] = _userId;
-
-    final docRef = await _firestore.collection('revenues').add(data);
-
-    final addedRevenue = Revenue(
+    final addedEntry = ConstructionEntry(
       id: docRef.id,
-      projectId: revenue.projectId,
-      amount: revenue.amount,
-      description: revenue.description,
-      date: revenue.date,
+      projectId: entry.projectId,
+      date: entry.date,
+      description: entry.description,
+      transactionType: entry.transactionType,
+      categoryId: entry.categoryId,
+      quantity: entry.quantity,
+      rate: entry.rate,
+      paymentMode: entry.paymentMode,
+      referenceData: entry.referenceData,
+      attachmentUrl: entry.attachmentUrl,
+      payableId: entry.payableId,
     );
 
-    if (revenue.projectId.isEmpty) {
-      _revenues.add(addedRevenue);
+    if (entry.projectId.isEmpty) {
+      _globalEntries.add(addedEntry);
     } else {
-      final projectIndex = _projects.indexWhere(
-        (p) => p.id == revenue.projectId,
-      );
+      final projectIndex = _projects.indexWhere((p) => p.id == entry.projectId);
       if (projectIndex >= 0) {
-        _projects[projectIndex].revenues.add(addedRevenue);
+        _projects[projectIndex].entries.add(addedEntry);
       }
     }
     notifyListeners();
   }
 
-  Future<void> removeRevenue(String revenueId) async {
-    // Check global first
-    int globalIndex = _revenues.indexWhere((r) => r.id == revenueId);
+  Future<void> removeEntry(String entryId) async {
+    // Check global
+    int globalIndex = _globalEntries.indexWhere((e) => e.id == entryId);
     if (globalIndex >= 0) {
-      _revenues.removeAt(globalIndex);
+      _globalEntries.removeAt(globalIndex);
       notifyListeners();
     } else {
-      // Check projects
       for (var p in _projects) {
-        int idx = p.revenues.indexWhere((r) => r.id == revenueId);
+        int idx = p.entries.indexWhere((e) => e.id == entryId);
         if (idx >= 0) {
-          p.revenues.removeAt(idx);
+          p.entries.removeAt(idx);
           notifyListeners();
           break;
         }
@@ -483,11 +410,22 @@ class BudgetProvider with ChangeNotifier {
     }
 
     try {
-      await _firestore.collection('revenues').doc(revenueId).delete();
+      // Need to delete from whatever collection it came from.
+      // Easiest is to try all three collections if we don't know the source collection.
+      await _deleteFromAny('entries', entryId);
+      await _deleteFromAny('expenses', entryId);
+      await _deleteFromAny('revenues', entryId);
     } catch (e, st) {
-      debugPrint('removeRevenue error: $e\n$st');
+      debugPrint('removeEntry error: $e\n$st');
       await fetchAndSetProjects();
     }
+  }
+
+  Future<void> _deleteFromAny(String collectionPath, String id) async {
+    try {
+      final doc = await _firestore.collection(collectionPath).doc(id).get();
+      if (doc.exists) await doc.reference.delete();
+    } catch (_) {}
   }
 
   // ── Milestones ─────────────────────────────────────────────────────────────
@@ -523,16 +461,12 @@ class BudgetProvider with ChangeNotifier {
       final milestoneIndex = _projects[projectIndex].milestones.indexWhere(
         (m) => m.id == milestoneId,
       );
-
       if (milestoneIndex >= 0) {
         final currentCompletion =
             _projects[projectIndex].milestones[milestoneIndex].isCompleted;
-
-        // If it wasn't completed before, but now it is, trigger capital call
         if (!currentCompletion && isCompleted) {
           triggeredCapitalCall = true;
         }
-
         _projects[projectIndex].milestones[milestoneIndex] =
             _projects[projectIndex].milestones[milestoneIndex].copyWith(
               isCompleted: isCompleted,
@@ -540,7 +474,6 @@ class BudgetProvider with ChangeNotifier {
         notifyListeners();
       }
     }
-
     try {
       await _firestore.collection('milestones').doc(milestoneId).update({
         'isCompleted': isCompleted,
@@ -549,7 +482,6 @@ class BudgetProvider with ChangeNotifier {
       debugPrint('toggleMilestone error: $e\n$st');
       await fetchAndSetProjects();
     }
-
     return triggeredCapitalCall;
   }
 
@@ -559,13 +491,11 @@ class BudgetProvider with ChangeNotifier {
       final milestoneIndex = _projects[projectIndex].milestones.indexWhere(
         (m) => m.id == milestoneId,
       );
-
       if (milestoneIndex >= 0) {
         _projects[projectIndex].milestones.removeAt(milestoneIndex);
         notifyListeners();
       }
     }
-
     try {
       await _firestore.collection('milestones').doc(milestoneId).delete();
     } catch (e, st) {
@@ -620,7 +550,6 @@ class BudgetProvider with ChangeNotifier {
         notifyListeners();
       }
     }
-
     try {
       await _firestore.collection('payables').doc(payableId).delete();
     } catch (e, st) {
@@ -628,6 +557,7 @@ class BudgetProvider with ChangeNotifier {
       await fetchAndSetProjects();
     }
   }
+
   // ── Snag Items ─────────────────────────────────────────────────────────
 
   Future<void> addSnagItem(SnagItem snagItem) async {
@@ -637,7 +567,6 @@ class BudgetProvider with ChangeNotifier {
 
     final docRef = await _firestore.collection('snags').add(data);
 
-    // We create a new item with the generated ID, copyWith is not available so we just construct a new one
     final addedSnag = SnagItem(
       id: docRef.id,
       projectId: snagItem.projectId,

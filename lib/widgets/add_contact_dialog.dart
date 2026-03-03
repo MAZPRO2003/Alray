@@ -18,6 +18,7 @@ class _AddContactDialogState extends State<AddContactDialog> {
   final _nameController = TextEditingController();
   final _roleController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _wageController = TextEditingController(text: '0');
   String _contactType = 'Worker';
 
   Future<void> _pickExternalContact() async {
@@ -59,12 +60,14 @@ class _AddContactDialogState extends State<AddContactDialog> {
         ? 'Customer'
         : _roleController.text.trim();
     final enteredPhone = _phoneController.text.trim();
+    final enteredWage = double.tryParse(_wageController.text) ?? 0.0;
 
     final newContact = app_model.Contact(
       id: '',
       name: enteredName,
       role: enteredRole,
       phoneNumber: enteredPhone,
+      dailyWage: enteredWage,
     );
 
     try {
@@ -83,6 +86,7 @@ class _AddContactDialogState extends State<AddContactDialog> {
     _nameController.dispose();
     _roleController.dispose();
     _phoneController.dispose();
+    _wageController.dispose();
     super.dispose();
   }
 
@@ -187,6 +191,27 @@ class _AddContactDialogState extends State<AddContactDialog> {
                   keyboardType: TextInputType.phone,
                   validator: AppValidators.validatePhone,
                 ),
+                const SizedBox(height: 16),
+                if (_contactType == 'Worker')
+                  TextFormField(
+                    controller: _wageController,
+                    decoration: const InputDecoration(
+                      labelText: 'Daily Wage (₹)',
+                      prefixIcon: Icon(Icons.currency_rupee),
+                      hintText: 'e.g. 800',
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    validator: (v) {
+                      if (v != null &&
+                          v.isNotEmpty &&
+                          double.tryParse(v) == null) {
+                        return 'Invalid number';
+                      }
+                      return null;
+                    },
+                  ),
                 const SizedBox(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,

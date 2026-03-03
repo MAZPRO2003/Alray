@@ -1,0 +1,25 @@
+Analyzing alray_app...                                          
+
+   info • Statements in an if should be enclosed in a block • lib/models/construction_entry.dart:278:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/models/expense.dart:103:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/models/expense.dart:105:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/models/expense.dart:107:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/screens/all_expenses_screen.dart:170:19 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/screens/all_expenses_screen.dart:217:19 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/screens/all_expenses_screen.dart:222:19 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/screens/all_expenses_screen.dart:432:31 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/screens/all_expenses_screen.dart:436:31 • curly_braces_in_flow_control_structures
+   info • Unnecessary use of 'toList' in a spread • lib/screens/attendance_report_screen.dart:592:14 • unnecessary_to_list_in_spreads
+   info • Unnecessary use of 'toList' in a spread • lib/screens/attendance_report_screen.dart:781:14 • unnecessary_to_list_in_spreads
+   info • Unnecessary use of multiple underscores • lib/screens/contact_details_screen.dart:405:47 • unnecessary_underscores
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/settings_screen.dart:238:38 • use_build_context_synchronously
+   info • 'Share' is deprecated and shouldn't be used. Use SharePlus instead • lib/utils/report_exporter.dart:23:13 • deprecated_member_use
+   info • 'shareXFiles' is deprecated and shouldn't be used. Use SharePlus.instance.share() instead • lib/utils/report_exporter.dart:23:19 • deprecated_member_use
+   info • 'Share' is deprecated and shouldn't be used. Use SharePlus instead • lib/utils/report_exporter.dart:105:13 • deprecated_member_use
+   info • 'shareXFiles' is deprecated and shouldn't be used. Use SharePlus.instance.share() instead • lib/utils/report_exporter.dart:105:19 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre • lib/widgets/add_attendance_dialog.dart:152:21 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre • lib/widgets/add_expense_dialog.dart:148:19 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre • lib/widgets/add_expense_dialog.dart:247:19 • deprecated_member_use
+   info • Statements in an if should be enclosed in a block • lib/widgets/transaction_details_dialog.dart:147:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/widgets/transaction_details_dialog.dart:156:7 • curly_braces_in_flow_control_structures
+

@@ -1,0 +1,45 @@
+Analyzing alray_app...                                          
+
+   info • Statements in an if should be enclosed in a block • lib/models/construction_entry.dart:278:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/models/expense.dart:103:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/models/expense.dart:105:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/models/expense.dart:107:9 • curly_braces_in_flow_control_structures
+  error • The getter 'expenses' isn't defined for the type 'BudgetProvider' • lib/screens/ai_chat_screen.dart:57:16 • undefined_getter
+  error • The getter 'revenues' isn't defined for the type 'BudgetProvider' • lib/screens/ai_chat_screen.dart:58:16 • undefined_getter
+   info • Statements in an if should be enclosed in a block • lib/screens/all_expenses_screen.dart:170:19 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/screens/all_expenses_screen.dart:217:19 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/screens/all_expenses_screen.dart:222:19 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/screens/all_expenses_screen.dart:432:31 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/screens/all_expenses_screen.dart:436:31 • curly_braces_in_flow_control_structures
+   info • Unnecessary use of 'toList' in a spread • lib/screens/attendance_report_screen.dart:592:14 • unnecessary_to_list_in_spreads
+   info • Unnecessary use of 'toList' in a spread • lib/screens/attendance_report_screen.dart:781:14 • unnecessary_to_list_in_spreads
+   info • Unnecessary use of multiple underscores • lib/screens/contact_details_screen.dart:405:47 • unnecessary_underscores
+  error • The getter 'expenses' isn't defined for the type 'Project' • lib/screens/project_details_screen.dart:232:24 • undefined_getter
+  error • The getter 'revenues' isn't defined for the type 'Project' • lib/screens/project_details_screen.dart:233:24 • undefined_getter
+  error • The getter 'expenses' isn't defined for the type 'Project' • lib/screens/project_details_screen.dart:239:38 • undefined_getter
+  error • The getter 'expenses' isn't defined for the type 'Project' • lib/screens/project_details_screen.dart:267:40 • undefined_getter
+  error • The getter 'expenses' isn't defined for the type 'Project' • lib/screens/project_details_screen.dart:1063:62 • undefined_getter
+  error • The method 'removeRevenue' isn't defined for the type 'BudgetProvider' • lib/screens/project_details_screen.dart:1411:62 • undefined_method
+  error • The method 'removeExpense' isn't defined for the type 'BudgetProvider' • lib/screens/project_details_screen.dart:1416:62 • undefined_method
+  error • The getter 'expenses' isn't defined for the type 'Project' • lib/screens/project_details_screen.dart:1475:54 • undefined_getter
+  error • The getter 'revenues' isn't defined for the type 'Project' • lib/screens/project_details_screen.dart:1745:28 • undefined_getter
+  error • The getter 'expenses' isn't defined for the type 'Project' • lib/screens/project_details_screen.dart:1754:28 • undefined_getter
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/settings_screen.dart:238:38 • use_build_context_synchronously
+  error • The getter 'category' isn't defined for the type 'Expense' • lib/services/ai_service.dart:109:105 • undefined_getter
+  error • The getter 'expenses' isn't defined for the type 'Project' • lib/services/ai_service.dart:178:48 • undefined_getter
+   info • 'Share' is deprecated and shouldn't be used. Use SharePlus instead • lib/utils/report_exporter.dart:23:13 • deprecated_member_use
+   info • 'shareXFiles' is deprecated and shouldn't be used. Use SharePlus.instance.share() instead • lib/utils/report_exporter.dart:23:19 • deprecated_member_use
+   info • 'Share' is deprecated and shouldn't be used. Use SharePlus instead • lib/utils/report_exporter.dart:105:13 • deprecated_member_use
+   info • 'shareXFiles' is deprecated and shouldn't be used. Use SharePlus.instance.share() instead • lib/utils/report_exporter.dart:105:19 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre • lib/widgets/add_attendance_dialog.dart:152:21 • deprecated_member_use
+  error • Undefined name 'PaymentMethod' • lib/widgets/add_expense_dialog.dart:66:35 • undefined_identifier
+  error • The method 'Expense' isn't defined for the type '_AddExpenseDialogState' • lib/widgets/add_expense_dialog.dart:76:26 • undefined_method
+  error • Undefined name 'PaymentMethod' • lib/widgets/add_expense_dialog.dart:84:50 • undefined_identifier
+  error • The method 'addExpense' isn't defined for the type 'BudgetProvider' • lib/widgets/add_expense_dialog.dart:92:9 • undefined_method
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre • lib/widgets/add_expense_dialog.dart:147:19 • deprecated_member_use
+  error • Undefined name 'ExpenseCategories' • lib/widgets/add_expense_dialog.dart:152:26 • undefined_identifier
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre • lib/widgets/add_expense_dialog.dart:246:19 • deprecated_member_use
+  error • The method 'addRevenue' isn't defined for the type 'BudgetProvider' • lib/widgets/add_revenue_dialog.dart:57:9 • undefined_method
+   info • Statements in an if should be enclosed in a block • lib/widgets/transaction_details_dialog.dart:147:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/widgets/transaction_details_dialog.dart:156:7 • curly_braces_in_flow_control_structures
+

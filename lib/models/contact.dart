@@ -34,6 +34,7 @@ class Contact {
     this.callNotes,
     this.noteLog = const [],
     this.createdAt,
+    this.dailyWage = 0.0,
   });
 
   final String id;
@@ -47,6 +48,7 @@ class Contact {
   final String? callNotes; // Legacy field — kept for backward compat
   final List<ContactNote> noteLog; // New: list of timestamped notes
   final DateTime? createdAt;
+  final double dailyWage;
 
   factory Contact.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> snapshot,
@@ -75,6 +77,7 @@ class Contact {
               ?.map((m) => ContactNote.fromMap(m as Map<String, dynamic>))
               .toList() ??
           [],
+      dailyWage: (data?['dailyWage'] as num?)?.toDouble() ?? 0.0,
     );
   }
 
@@ -94,6 +97,28 @@ class Contact {
           .toList(),
       if (callNotes != null) "callNotes": callNotes,
       "noteLog": noteLog.map((n) => n.toMap()).toList(),
+      "dailyWage": dailyWage,
     };
+  }
+
+  // Khatabook Ledger Helpers
+  double calculateTotalGave(List<dynamic> entries) {
+    // Expense = App Owner gave money to Contact
+    return entries
+        .where((e) => e.contactId == id && e.transactionType.name == 'expense')
+        .fold(0.0, (sum, e) => sum + e.amount);
+  }
+
+  double calculateTotalGot(List<dynamic> entries) {
+    // Credit = App Owner got money from Contact
+    return entries
+        .where((e) => e.contactId == id && e.transactionType.name == 'credit')
+        .fold(0.0, (sum, e) => sum + e.amount);
+  }
+
+  double calculateNetBalance(List<dynamic> entries) {
+    // Positive = You owe them (Dene Hai)
+    // Negative = They owe you (Lene Hai)
+    return calculateTotalGot(entries) - calculateTotalGave(entries);
   }
 }

@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:alray_app/providers/budget_provider.dart';
 import 'package:alray_app/models/payable.dart';
-import 'package:alray_app/models/expense.dart';
+import 'package:alray_app/models/construction_entry.dart';
 import 'package:alray_app/utils/currency_utils.dart';
 
 class AddPartialPaymentDialog extends StatefulWidget {
@@ -57,19 +57,20 @@ class _AddPartialPaymentDialogState extends State<AddPartialPaymentDialog> {
     setState(() => _isLoading = true);
 
     try {
-      final expense = Expense(
+      final entry = ConstructionEntry(
         projectId: widget.payable.projectId,
         description: 'Payment towards: ${widget.payable.description}',
-        amount: amount,
+        transactionType: TransactionType.expense,
+        categoryId: EntryCategory
+            .otherMiscMaterials, // Defaulting to material misc for vendor payables
+        rate: amount, // amount acts as rate
+        quantity: 1.0,
         date: _selectedDate,
-        category: ExpenseCategory
-            .material, // Defaulting to material for vendor payables
-        vendorName: widget.payable.vendorName,
         payableId: widget.payable.id,
       );
 
       final provider = Provider.of<BudgetProvider>(context, listen: false);
-      await provider.addExpense(widget.payable.projectId, expense);
+      await provider.addEntry(entry);
 
       if (amount == widget.remainingBalance) {
         // Mark as paid if the balance hits 0

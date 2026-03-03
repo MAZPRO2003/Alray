@@ -1,6 +1,5 @@
 import 'package:uuid/uuid.dart';
-import 'package:alray_app/models/expense.dart';
-import 'package:alray_app/models/revenue.dart';
+import 'package:alray_app/models/construction_entry.dart';
 import 'package:alray_app/models/milestone.dart';
 import 'package:alray_app/models/payable.dart';
 import 'package:alray_app/models/snag_item.dart';
@@ -11,8 +10,7 @@ class Project {
   final String id;
   final String name;
   final double budget;
-  final List<Expense> expenses;
-  final List<Revenue> revenues;
+  final List<ConstructionEntry> entries;
   final List<Milestone> milestones;
   final List<Payable> payables;
   final List<SnagItem> snagItems;
@@ -26,8 +24,7 @@ class Project {
     String? id,
     required this.name,
     required this.budget,
-    List<Expense>? expenses,
-    List<Revenue>? revenues,
+    List<ConstructionEntry>? entries,
     List<Milestone>? milestones,
     List<Payable>? payables,
     List<SnagItem>? snagItems,
@@ -37,8 +34,7 @@ class Project {
     this.endDate,
     this.customerPhone,
   }) : id = id ?? uuid.v4(),
-       expenses = expenses ?? [],
-       revenues = revenues ?? [],
+       entries = entries ?? [],
        milestones = milestones ?? [],
        payables = payables ?? [],
        snagItems = snagItems ?? [];
@@ -46,8 +42,7 @@ class Project {
   factory Project.fromJson(
     Map<String, dynamic> json,
     String documentId,
-    List<Expense> projectExpenses,
-    List<Revenue> projectRevenues,
+    List<ConstructionEntry> projectEntries,
     List<Milestone> projectMilestones,
     List<Payable> projectPayables,
     List<SnagItem> projectSnagItems,
@@ -56,8 +51,7 @@ class Project {
       id: documentId,
       name: json['name'] as String? ?? 'Unnamed Project',
       budget: (json['budget'] as num?)?.toDouble() ?? 0.0,
-      expenses: projectExpenses,
-      revenues: projectRevenues,
+      entries: projectEntries,
       milestones: projectMilestones,
       payables: projectPayables,
       snagItems: projectSnagItems,
@@ -91,12 +85,16 @@ class Project {
 
   /// Total funds received from the customer for this specific project.
   double get totalReceived {
-    return revenues.fold(0.0, (total, item) => total + item.amount);
+    return entries
+        .where((e) => e.transactionType == TransactionType.credit)
+        .fold(0.0, (total, item) => total + item.amount);
   }
 
   /// Total funds spent on this specific project.
   double get totalSpent {
-    return expenses.fold(0.0, (total, item) => total + item.amount);
+    return entries
+        .where((e) => e.transactionType == TransactionType.expense)
+        .fold(0.0, (total, item) => total + item.amount);
   }
 
   /// Current cash available for the project (Received - Spent).
@@ -114,8 +112,12 @@ class Project {
   double get pendingPayablesTotal {
     double pending = 0;
     for (var p in payables) {
-      final paidAmount = expenses
-          .where((e) => e.payableId == p.id)
+      final paidAmount = entries
+          .where(
+            (e) =>
+                e.payableId == p.id &&
+                e.transactionType == TransactionType.expense,
+          )
           .fold(0.0, (total, e) => total + e.amount);
       final remaining = p.totalAmount - paidAmount;
       if (remaining > 0) pending += remaining;
@@ -124,20 +126,35 @@ class Project {
   }
 
   double get contractorExpenses {
-    return expenses
-        .where((e) => e.category == ExpenseCategory.contractor)
+    return entries
+        .where(
+          (e) =>
+              e.transactionType == TransactionType.expense &&
+              (e.categoryId.endsWith('-L') ||
+                  e.categoryId == EntryCategory.planApproval),
+        )
         .fold(0, (total, item) => total + item.amount);
   }
 
   double get materialExpenses {
-    return expenses
-        .where((e) => e.category == ExpenseCategory.material)
+    return entries
+        .where(
+          (e) =>
+              e.transactionType == TransactionType.expense &&
+              e.categoryId.endsWith('-M'),
+        )
         .fold(0, (total, item) => total + item.amount);
   }
 
   double get otherExpenses {
-    return expenses
-        .where((e) => e.category == ExpenseCategory.other)
+    return entries
+        .where(
+          (e) =>
+              e.transactionType == TransactionType.expense &&
+              !e.categoryId.endsWith('-L') &&
+              e.categoryId != EntryCategory.planApproval &&
+              !e.categoryId.endsWith('-M'),
+        )
         .fold(0, (total, item) => total + item.amount);
   }
 

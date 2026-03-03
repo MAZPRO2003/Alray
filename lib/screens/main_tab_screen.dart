@@ -44,15 +44,15 @@ class _MainTabScreenState extends State<MainTabScreen> {
           backgroundColor: Colors.grey.shade800,
         ),
       );
-      return false; // don't exit yet
+      return false;
     }
-    // Second press within 2 seconds — exit
     await SystemNavigator.pop();
     return true;
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
@@ -65,30 +65,47 @@ class _MainTabScreenState extends State<MainTabScreen> {
         bottomNavigationBar: NavigationBar(
           selectedIndex: widget.navigationShell.currentIndex,
           onDestinationSelected: _goBranch,
-          destinations: const [
+          backgroundColor: Colors.white,
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          indicatorColor: theme.colorScheme.primary.withValues(alpha: 0.12),
+          destinations: [
             NavigationDestination(
-              icon: Icon(Icons.dashboard_outlined),
-              selectedIcon: Icon(Icons.dashboard),
+              icon: const Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home, color: theme.colorScheme.primary),
+              label: 'Home',
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.business_center_outlined),
+              selectedIcon: Icon(
+                Icons.business_center,
+                color: theme.colorScheme.primary,
+              ),
               label: 'Projects',
             ),
             NavigationDestination(
-              icon: Icon(Icons.receipt_long_outlined),
-              selectedIcon: Icon(Icons.receipt_long),
-              label: 'Expenses',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.people_outline),
-              selectedIcon: Icon(Icons.people),
+              icon: const Icon(Icons.people_outline),
+              selectedIcon: Icon(
+                Icons.people,
+                color: theme.colorScheme.primary,
+              ),
               label: 'People',
             ),
             NavigationDestination(
-              icon: Icon(Icons.analytics_outlined),
-              selectedIcon: Icon(Icons.analytics),
-              label: 'Analytics',
+              icon: const Icon(Icons.calendar_today_outlined),
+              selectedIcon: Icon(
+                Icons.calendar_today,
+                color: theme.colorScheme.primary,
+              ),
+              label: 'Daily',
             ),
             NavigationDestination(
-              icon: Icon(Icons.settings_outlined),
-              selectedIcon: Icon(Icons.settings),
+              icon: const Icon(Icons.settings_outlined),
+              selectedIcon: Icon(
+                Icons.settings,
+                color: theme.colorScheme.primary,
+              ),
               label: 'Settings',
             ),
           ],

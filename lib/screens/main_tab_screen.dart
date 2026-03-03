@@ -93,14 +93,6 @@ class _MainTabScreenState extends State<MainTabScreen> {
               label: 'People',
             ),
             NavigationDestination(
-              icon: const Icon(Icons.calendar_today_outlined),
-              selectedIcon: Icon(
-                Icons.calendar_today,
-                color: theme.colorScheme.primary,
-              ),
-              label: 'Daily',
-            ),
-            NavigationDestination(
               icon: const Icon(Icons.settings_outlined),
               selectedIcon: Icon(
                 Icons.settings,

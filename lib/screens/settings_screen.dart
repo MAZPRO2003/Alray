@@ -5,7 +5,6 @@ import 'package:alray_app/providers/auth_provider.dart';
 import 'package:alray_app/utils/currency_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
-import 'package:alray_app/services/ai_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -47,13 +46,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'ai_chat_fab_settings',
-        onPressed: () => context.push('/chat'),
-        backgroundColor: Colors.indigo,
-        tooltip: 'AI Chat Assistant',
-        child: const Icon(Icons.smart_toy, color: Colors.white),
-      ),
       body: ListView(
         children: [
           ListTile(
@@ -108,14 +100,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 applicationVersion: '1.0.0',
               );
             },
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.smart_toy, color: Colors.blueAccent),
-            title: const Text('Gemini API Key'),
-            subtitle: const Text('Configure AI Assistant credentials'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _showApiKeyDialog(context),
           ),
           const Divider(),
           ListTile(
@@ -199,50 +183,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             );
           }).toList(),
         ),
-      ),
-    );
-  }
-
-  void _showApiKeyDialog(BuildContext context) async {
-    final aiService = AiService();
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final userId = authProvider.user?.uid;
-
-    final currentKey = await aiService.getApiKey(userId);
-    final controller = TextEditingController(text: currentKey);
-
-    if (!context.mounted) return;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Gemini API Key'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            hintText: 'Enter API Key',
-            border: OutlineInputBorder(),
-          ),
-          obscureText: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await aiService.setApiKey(userId, controller.text.trim());
-              if (ctx.mounted) Navigator.pop(ctx);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('API Key updated successfully')),
-                );
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
       ),
     );
   }

@@ -19,7 +19,6 @@ class _AddContactDialogState extends State<AddContactDialog> {
   final _roleController = TextEditingController();
   final _phoneController = TextEditingController();
   final _wageController = TextEditingController(text: '0');
-  String _contactType = 'Worker';
 
   Future<void> _pickExternalContact() async {
     if (await Permission.contacts.request().isGranted) {
@@ -56,9 +55,7 @@ class _AddContactDialogState extends State<AddContactDialog> {
     if (!_formKey.currentState!.validate()) return;
 
     final enteredName = _nameController.text.trim();
-    final enteredRole = _contactType == 'Customer'
-        ? 'Customer'
-        : _roleController.text.trim();
+    final enteredRole = _roleController.text.trim();
     final enteredPhone = _phoneController.text.trim();
     final enteredWage = double.tryParse(_wageController.text) ?? 0.0;
 
@@ -115,34 +112,6 @@ class _AddContactDialogState extends State<AddContactDialog> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
-                SegmentedButton<String>(
-                  style: SegmentedButton.styleFrom(
-                    selectedBackgroundColor: Theme.of(
-                      context,
-                    ).colorScheme.primary,
-                    selectedForegroundColor: Theme.of(
-                      context,
-                    ).colorScheme.onPrimary,
-                    foregroundColor: Theme.of(context).colorScheme.onSurface,
-                  ),
-                  segments: const [
-                    ButtonSegment(
-                      value: 'Worker',
-                      label: Text('Worker'),
-                      icon: Icon(Icons.engineering),
-                    ),
-                    ButtonSegment(
-                      value: 'Customer',
-                      label: Text('Customer'),
-                      icon: Icon(Icons.person),
-                    ),
-                  ],
-                  selected: {_contactType},
-                  onSelectionChanged: (Set<String> newSelection) {
-                    setState(() => _contactType = newSelection.first);
-                  },
-                ),
-                const SizedBox(height: 16),
                 OutlinedButton.icon(
                   onPressed: _pickExternalContact,
                   icon: const Icon(Icons.contacts),
@@ -167,19 +136,18 @@ class _AddContactDialogState extends State<AddContactDialog> {
                       : null,
                 ),
                 const SizedBox(height: 16),
-                if (_contactType == 'Worker')
-                  TextFormField(
-                    controller: _roleController,
-                    decoration: const InputDecoration(
-                      labelText: 'Role',
-                      hintText: 'e.g. Plumber, Contractor',
-                      prefixIcon: Icon(Icons.work),
-                    ),
-                    textCapitalization: TextCapitalization.words,
-                    validator: (v) => (v == null || v.trim().isEmpty)
-                        ? 'Role is required'
-                        : null,
+                TextFormField(
+                  controller: _roleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Role',
+                    hintText: 'e.g. Plumber, Contractor',
+                    prefixIcon: Icon(Icons.work),
                   ),
+                  textCapitalization: TextCapitalization.words,
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Role is required'
+                      : null,
+                ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _phoneController,
@@ -192,26 +160,25 @@ class _AddContactDialogState extends State<AddContactDialog> {
                   validator: AppValidators.validatePhone,
                 ),
                 const SizedBox(height: 16),
-                if (_contactType == 'Worker')
-                  TextFormField(
-                    controller: _wageController,
-                    decoration: const InputDecoration(
-                      labelText: 'Daily Wage (₹)',
-                      prefixIcon: Icon(Icons.currency_rupee),
-                      hintText: 'e.g. 800',
-                    ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    validator: (v) {
-                      if (v != null &&
-                          v.isNotEmpty &&
-                          double.tryParse(v) == null) {
-                        return 'Invalid number';
-                      }
-                      return null;
-                    },
+                TextFormField(
+                  controller: _wageController,
+                  decoration: const InputDecoration(
+                    labelText: 'Daily Wage (₹)',
+                    prefixIcon: Icon(Icons.currency_rupee),
+                    hintText: 'e.g. 800',
                   ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  validator: (v) {
+                    if (v != null &&
+                        v.isNotEmpty &&
+                        double.tryParse(v) == null) {
+                      return 'Invalid number';
+                    }
+                    return null;
+                  },
+                ),
                 const SizedBox(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,

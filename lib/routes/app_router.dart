@@ -11,9 +11,7 @@ import 'package:alray_app/screens/contact_details_screen.dart';
 import 'package:alray_app/screens/profile_screen.dart';
 import 'package:alray_app/screens/login_screen.dart';
 import 'package:alray_app/screens/signup_screen.dart';
-import 'package:alray_app/screens/attendance_screen.dart';
-import 'package:alray_app/screens/attendance_report_screen.dart';
-import 'package:alray_app/screens/ai_chat_screen.dart';
+import 'package:alray_app/screens/labor_payment_screen.dart';
 import 'package:alray_app/providers/auth_provider.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -45,11 +43,6 @@ GoRouter createAppRouter(AuthProvider authProvider) {
         path: '/signup',
         builder: (context, state) => const SignUpScreen(),
       ),
-      GoRoute(
-        path: '/chat',
-        parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const AiChatScreen(),
-      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return MainTabScreen(navigationShell: navigationShell);
@@ -78,6 +71,16 @@ GoRouter createAppRouter(AuthProvider authProvider) {
                       final id = state.pathParameters['id']!;
                       return ProjectDetailsScreen(projectId: id);
                     },
+                    routes: [
+                      GoRoute(
+                        path: 'labor-payments',
+                        parentNavigatorKey: _rootNavigatorKey,
+                        builder: (context, state) {
+                          final id = state.pathParameters['id']!;
+                          return LaborPaymentScreen(projectId: id);
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -114,23 +117,7 @@ GoRouter createAppRouter(AuthProvider authProvider) {
               ),
             ],
           ),
-          // Branch 3: Daily (Attendance)
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/attendance',
-                builder: (context, state) => const AttendanceScreen(),
-                routes: [
-                  GoRoute(
-                    path: 'reports',
-                    parentNavigatorKey: _rootNavigatorKey,
-                    builder: (context, state) => const AttendanceReportScreen(),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          // Branch 4: Settings
+          // Branch 3: Settings
           StatefulShellBranch(
             routes: [
               GoRoute(

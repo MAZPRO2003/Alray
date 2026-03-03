@@ -93,22 +93,15 @@ function App() {
 
     setFormLoading(true);
     try {
-      // 1. Save to Firestore
-      await addDoc(collection(db, 'contacts'), {
+      // 1. Save inquiry to its own collection (separate from app contacts)
+      await addDoc(collection(db, 'inquiries'), {
         name: formData.name,
-        role: 'Customer',
-        phoneNumber: cleanPhone || formData.phone,
-        notes: `Service: ${formData.service}\nEmail: ${formData.email}\nMessage: ${formData.message}`,
-        noteLog: [
-          {
-            text: `Inquiry for ${formData.service}: ${formData.message}`,
-            timestamp: new Date()
-          }
-        ],
-        callCount: 0,
-        callHistory: [],
-        userId: 'WEB_INQUIRY',
-        createdAt: new Date()
+        email: formData.email,
+        phone: cleanPhone || formData.phone,
+        service: formData.service,
+        message: formData.message,
+        createdAt: new Date(),
+        status: 'new'
       });
 
       // 2. Send Email Notification via EmailJS

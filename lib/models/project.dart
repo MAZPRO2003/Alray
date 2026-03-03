@@ -3,6 +3,8 @@ import 'package:alray_app/models/construction_entry.dart';
 import 'package:alray_app/models/milestone.dart';
 import 'package:alray_app/models/payable.dart';
 import 'package:alray_app/models/snag_item.dart';
+import 'package:alray_app/models/labor_task.dart';
+import 'package:alray_app/models/labor_payment.dart';
 
 const uuid = Uuid();
 
@@ -14,6 +16,8 @@ class Project {
   final List<Milestone> milestones;
   final List<Payable> payables;
   final List<SnagItem> snagItems;
+  final List<LaborTask> laborTasks;
+  final List<LaborPayment> laborPayments;
   final double? latitude;
   final double? longitude;
   final DateTime? startDate;
@@ -28,6 +32,8 @@ class Project {
     List<Milestone>? milestones,
     List<Payable>? payables,
     List<SnagItem>? snagItems,
+    List<LaborTask>? laborTasks,
+    List<LaborPayment>? laborPayments,
     this.latitude,
     this.longitude,
     this.startDate,
@@ -37,7 +43,9 @@ class Project {
        entries = entries ?? [],
        milestones = milestones ?? [],
        payables = payables ?? [],
-       snagItems = snagItems ?? [];
+       snagItems = snagItems ?? [],
+       laborTasks = laborTasks ?? [],
+       laborPayments = laborPayments ?? [];
 
   factory Project.fromJson(
     Map<String, dynamic> json,
@@ -46,6 +54,8 @@ class Project {
     List<Milestone> projectMilestones,
     List<Payable> projectPayables,
     List<SnagItem> projectSnagItems,
+    List<LaborTask> projectLaborTasks,
+    List<LaborPayment> projectLaborPayments,
   ) {
     return Project(
       id: documentId,
@@ -55,6 +65,8 @@ class Project {
       milestones: projectMilestones,
       payables: projectPayables,
       snagItems: projectSnagItems,
+      laborTasks: projectLaborTasks,
+      laborPayments: projectLaborPayments,
       latitude: json['latitude'] != null
           ? (json['latitude'] as num).toDouble()
           : null,
@@ -92,9 +104,14 @@ class Project {
 
   /// Total funds spent on this specific project.
   double get totalSpent {
-    return entries
+    final entrySpent = entries
         .where((e) => e.transactionType == TransactionType.expense)
         .fold(0.0, (total, item) => total + item.amount);
+    final laborSpent = laborPayments.fold(
+      0.0,
+      (total, item) => total + item.amount,
+    );
+    return entrySpent + laborSpent;
   }
 
   /// Current cash available for the project (Received - Spent).
@@ -126,14 +143,19 @@ class Project {
   }
 
   double get contractorExpenses {
-    return entries
+    final entryContractor = entries
         .where(
           (e) =>
               e.transactionType == TransactionType.expense &&
               (e.categoryId.endsWith('-L') ||
                   e.categoryId == EntryCategory.planApproval),
         )
-        .fold(0, (total, item) => total + item.amount);
+        .fold(0.0, (total, item) => total + item.amount);
+    final laborSpent = laborPayments.fold(
+      0.0,
+      (total, item) => total + item.amount,
+    );
+    return entryContractor + laborSpent;
   }
 
   double get materialExpenses {
@@ -184,30 +206,39 @@ class Project {
     return completed / milestones.length;
   }
 
-  /// Evaluates risk based on time elapsed vs milestones completed
-  /// If time is moving much faster than progress, risk is high.
+  /// Evaluates risk based on budget and timeline.
   String get riskLevel {
-    if (startDate == null || endDate == null || milestones.isEmpty) {
+    // 1. Financial Risk (takes priority)
+    if (budget > 0) {
+      if (totalSpent > budget) return 'Critical (Budget)';
+      if (totalSpent > budget * 0.9) return 'High (Budget)';
+    }
+
+    // 2. Schedule Risk
+    if (startDate != null && endDate != null && milestones.isNotEmpty) {
+      final timePassed = timeElapsedPercentage;
+      final progress = milestoneCompletionPercentage;
+
+      if (timePassed > 1.0 && progress < 1.0) {
+        return 'Critical (Overdue)';
+      }
+      if (timePassed - progress > 0.20) {
+        return 'High';
+      }
+      if (timePassed - progress > 0.10) {
+        return 'Medium';
+      }
+    }
+
+    // 3. Informational / No Data
+    if (entries.isEmpty && milestones.isEmpty && budget == 0) {
       return 'Unknown';
-    }
-
-    final timePassed = timeElapsedPercentage;
-    final progress = milestoneCompletionPercentage;
-
-    if (timePassed > 1.0 && progress < 1.0) {
-      return 'Critical (Overdue)';
-    }
-
-    // if passing time is 20% ahead of progress
-    if (timePassed - progress > 0.20) {
-      return 'High';
-    }
-
-    // if passing time is 10% ahead of progress
-    if (timePassed - progress > 0.10) {
-      return 'Medium';
     }
 
     return 'Low';
   }
+
+  /// Project is considered completed if all its milestones are done.
+  bool get isCompleted =>
+      milestones.isNotEmpty && milestoneCompletionPercentage == 1.0;
 }

@@ -11,7 +11,6 @@ class ContactsProvider with ChangeNotifier {
   String? _userId;
 
   StreamSubscription? _teamSubscription;
-  StreamSubscription? _customerSubscription;
 
   List<Contact> get contacts => [..._contacts];
 
@@ -20,7 +19,6 @@ class ContactsProvider with ChangeNotifier {
       _userId = uid;
       _contacts = [];
       _teamSubscription?.cancel();
-      _customerSubscription?.cancel();
 
       if (uid != null) {
         Future.microtask(() => startListening());
@@ -37,61 +35,38 @@ class ContactsProvider with ChangeNotifier {
   @override
   void dispose() {
     _teamSubscription?.cancel();
-    _customerSubscription?.cancel();
     super.dispose();
   }
 
   void startListening() {
     if (_userId == null) return;
 
-    // Listen to personal team contacts
+    // Listen to personal team contacts only
     _teamSubscription = _firestore
         .collection('contacts')
         .where('userId', isEqualTo: _userId)
         .snapshots()
         .listen((snapshot) {
-          _updateLocalContacts(snapshot.docs, isGlobal: false);
-        });
-
-    // Listen to global Customer inquiries
-    _customerSubscription = _firestore
-        .collection('contacts')
-        .where('role', isEqualTo: 'Customer')
-        .snapshots()
-        .listen((snapshot) {
-          _updateLocalContacts(snapshot.docs, isGlobal: true);
+          _updateLocalContacts(snapshot.docs);
         });
   }
 
-  // Temporary storage to merge streams
+  // Temporary storage
   final Map<String, Contact> _teamMap = {};
-  final Map<String, Contact> _customerMap = {};
 
   void _updateLocalContacts(
-    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs, {
-    required bool isGlobal,
-  }) {
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
     final newContacts = docs
         .map((doc) => Contact.fromFirestore(doc, null))
         .toList();
-
-    if (isGlobal) {
-      _customerMap.clear();
-      for (var c in newContacts) {
-        _customerMap[c.id] = c;
-      }
-    } else {
-      _teamMap.clear();
-      for (var c in newContacts) {
-        _teamMap[c.id] = c;
-      }
+    _teamMap.clear();
+    for (var c in newContacts) {
+      _teamMap[c.id] = c;
     }
+    _contacts = _teamMap.values.toList();
 
-    // Merge and Deduplicate
-    final Map<String, Contact> merged = {..._teamMap, ..._customerMap};
-    _contacts = merged.values.toList();
-
-    // Sort by createdAt (Newest First) as a default for the provider list
+    // Sort by createdAt (Newest First)
     _contacts.sort((a, b) {
       if (a.createdAt != null && b.createdAt != null) {
         return b.createdAt!.compareTo(a.createdAt!);

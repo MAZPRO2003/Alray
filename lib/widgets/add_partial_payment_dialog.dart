@@ -59,7 +59,7 @@ class _AddPartialPaymentDialogState extends State<AddPartialPaymentDialog> {
     try {
       final entry = ConstructionEntry(
         projectId: widget.payable.projectId,
-        description: 'Payment towards: ${widget.payable.description}',
+        description: widget.payable.description,
         transactionType: TransactionType.expense,
         categoryId: EntryCategory
             .otherMiscMaterials, // Defaulting to material misc for vendor payables

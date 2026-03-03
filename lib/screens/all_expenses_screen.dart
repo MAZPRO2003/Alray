@@ -490,14 +490,10 @@ class _AllExpensesScreenState extends State<AllExpensesScreen> {
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: statusColor.withValues(
-                                          alpha: 0.12,
-                                        ),
+                                        color: statusColor.withValues(alpha: 0.12),
                                         borderRadius: BorderRadius.circular(12),
                                         border: Border.all(
-                                          color: statusColor.withValues(
-                                            alpha: 0.4,
-                                          ),
+                                          color: statusColor.withValues(alpha: 0.4),
                                         ),
                                       ),
                                       child: Text(

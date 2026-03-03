@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:alray_app/models/project.dart';
 import 'package:alray_app/providers/budget_provider.dart';
-import 'package:alray_app/providers/auth_provider.dart';
 import 'package:alray_app/widgets/add_expense_dialog.dart';
 import 'package:alray_app/widgets/add_revenue_dialog.dart';
 import 'package:alray_app/widgets/edit_project_dialog.dart';
@@ -16,15 +15,11 @@ import 'package:alray_app/utils/currency_utils.dart';
 import 'package:alray_app/widgets/add_snag_item_dialog.dart';
 import 'package:alray_app/widgets/transaction_details_dialog.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-
-import 'package:url_launcher/url_launcher.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 import 'package:alray_app/widgets/project_tabs/material_tab.dart';
 import 'package:alray_app/widgets/project_tabs/labour_tab.dart';
 import 'package:alray_app/widgets/project_tabs/specialized_tab.dart';
-import 'package:alray_app/widgets/ai_risk_dialog.dart';
+import 'package:alray_app/widgets/project_tabs/customer_tab.dart';
+import 'package:alray_app/widgets/report_selection_dialog.dart';
 
 class ProjectDetailsScreen extends StatefulWidget {
   final String projectId;
@@ -56,13 +51,6 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     showDialog(
       context: context,
       builder: (ctx) => EditProjectDialog(project: project),
-    );
-  }
-
-  void _showAiRiskAnalysis(BuildContext context, Project project) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AiRiskDialog(project: project),
     );
   }
 
@@ -183,7 +171,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Scaffold(
         resizeToAvoidBottomInset: false,
         appBar: AppBar(
@@ -192,16 +180,29 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
             isScrollable: true,
             tabs: [
               Tab(text: 'Overview'),
-              Tab(text: 'Material (-M)'),
-              Tab(text: 'Labour (-L)'),
+              Tab(text: 'Customer'),
+              Tab(text: 'Material'),
+              Tab(text: 'Labour'),
               Tab(text: 'Specialized'),
             ],
           ),
           actions: [
             IconButton(
               icon: const Icon(Icons.picture_as_pdf_outlined),
-              tooltip: 'Export PDF Report',
-              onPressed: () => _generatePdfReport(context, projectId),
+              tooltip: 'Export Project Report',
+              onPressed: () {
+                final budgetProvider = Provider.of<BudgetProvider>(
+                  context,
+                  listen: false,
+                );
+                final project = budgetProvider.projects.firstWhere(
+                  (p) => p.id == projectId,
+                );
+                showDialog(
+                  context: context,
+                  builder: (ctx) => ReportSelectionDialog(project: project),
+                );
+              },
             ),
             Consumer<BudgetProvider>(
               builder: (ctx, bp, _) {
@@ -263,6 +264,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                   transactions,
                   pendingPayables,
                 ),
+                CustomerTab(project: project),
                 MaterialTab(project: project),
                 LabourTab(project: project),
                 SpecializedTab(project: project),
@@ -409,8 +411,10 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                           ),
                           Row(
                             children: [
-                              _buildHealthBadge(project),
-                              const SizedBox(width: 8),
+                              if (!project.isCompleted) ...[
+                                _buildHealthBadge(project),
+                                const SizedBox(width: 8),
+                              ],
                               Text(
                                 CurrencyUtils.formatInr(project.cashOnHand),
                                 style: TextStyle(
@@ -447,63 +451,13 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'Cash deficit of ${CurrencyUtils.formatInr(project.cashOnHand.abs())}. Notify client.',
+                                  'Shortage of ${CurrencyUtils.formatInr(project.cashOnHand.abs())}.',
                                   style: const TextStyle(
                                     color: Colors.red,
                                     fontSize: 12,
                                   ),
                                 ),
                               ),
-                              if (project.customerPhone != null &&
-                                  project.customerPhone!.isNotEmpty)
-                                GestureDetector(
-                                  onTap: () async {
-                                    final shortage = CurrencyUtils.formatInr(
-                                      project.cashOnHand.abs(),
-                                    );
-                                    final encodedText = Uri.encodeComponent(
-                                      'Dear client, the project "${project.name}" has a cash deficit of $shortage. To proceed to the next step, please transfer the required funds at the earliest. Thank you.',
-                                    );
-                                    final uri = Uri.parse(
-                                      'https://wa.me/${project.customerPhone}?text=$encodedText',
-                                    );
-                                    try {
-                                      await launchUrl(
-                                        uri,
-                                        mode: LaunchMode.externalApplication,
-                                      );
-                                    } catch (_) {}
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF25D366),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: const Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.send,
-                                          color: Colors.white,
-                                          size: 14,
-                                        ),
-                                        SizedBox(width: 4),
-                                        Text(
-                                          'WhatsApp',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
                             ],
                           ),
                         ),
@@ -515,7 +469,9 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
               const SizedBox(height: 16),
 
               // --- NEW: Timeline & Risk ---
-              if (project.startDate != null && project.endDate != null)
+              if (!project.isCompleted &&
+                  project.startDate != null &&
+                  project.endDate != null)
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
@@ -529,22 +485,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                               'Timeline & Risk',
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
-                            Row(
-                              children: [
-                                _buildRiskBadge(project.riskLevel),
-                                const SizedBox(width: 8),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.smart_toy,
-                                    color: Colors.indigo,
-                                  ),
-                                  onPressed: () =>
-                                      _showAiRiskAnalysis(context, project),
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                ),
-                              ],
-                            ),
+                            Row(children: [_buildRiskBadge(project.riskLevel)]),
                           ],
                         ),
                         const Divider(),
@@ -736,7 +677,9 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                     ),
                   ),
                 ).animate().fade().slideY(begin: -0.1, end: 0, delay: 50.ms),
-              if (project.startDate != null && project.endDate != null)
+              if (!project.isCompleted &&
+                  project.startDate != null &&
+                  project.endDate != null)
                 const SizedBox(height: 16),
 
               // Milestones Section
@@ -798,39 +741,19 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                                   final triggeredCall = await budgetProvider
                                       .toggleMilestone(projectId, m.id, val);
                                   if (triggeredCall && ctx.mounted) {
-                                    if (project.customerPhone != null &&
-                                        project.customerPhone!.isNotEmpty) {
-                                      final encodedText = Uri.encodeComponent(
-                                        'Capital Call: ${project.name}\n\nThe milestone "${m.title}" has been completed. Please submit the next tranche of funding.',
-                                      );
-                                      final Uri whatsappUri = Uri.parse(
-                                        'https://wa.me/${project.customerPhone}?text=$encodedText',
-                                      );
-                                      try {
-                                        await launchUrl(
-                                          whatsappUri,
-                                          mode: LaunchMode.externalApplication,
-                                        );
-                                      } catch (e) {
-                                        debugPrint(
-                                          'Could not launch WhatsApp: $e',
-                                        );
-                                      }
-                                    }
-
                                     if (ctx.mounted) {
                                       ScaffoldMessenger.of(ctx).showSnackBar(
                                         SnackBar(
                                           content: Row(
                                             children: const [
                                               Icon(
-                                                Icons.monetization_on,
-                                                color: Colors.yellow,
+                                                Icons.check_circle,
+                                                color: Colors.green,
                                               ),
                                               SizedBox(width: 12),
                                               Expanded(
                                                 child: Text(
-                                                  'Milestone completed! Capital Call notification sent to investors.',
+                                                  'Milestone completed!',
                                                 ),
                                               ),
                                             ],
@@ -882,7 +805,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Accounts Payable',
+                            'Pending Payments',
                             style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(fontWeight: FontWeight.bold),
                           ),
@@ -899,7 +822,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                           padding: EdgeInsets.symmetric(vertical: 16.0),
                           child: Center(
                             child: Text(
-                              'No outstanding payables.',
+                              'No pending payments.',
                               style: TextStyle(color: Colors.grey),
                             ),
                           ),
@@ -994,7 +917,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Snag List / Defects',
+                            'Issues',
                             style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(fontWeight: FontWeight.bold),
                           ),
@@ -1011,7 +934,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                           padding: EdgeInsets.symmetric(vertical: 16.0),
                           child: Center(
                             child: Text(
-                              'No snags reported.',
+                              'No issues reported.',
                               style: TextStyle(color: Colors.grey),
                             ),
                           ),
@@ -1061,8 +984,8 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                                       vertical: 2,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: priorityColor.withValues(
-                                        alpha: isResolved ? 0.1 : 0.2,
+                                      color: priorityColor.withOpacity(
+                                        isResolved ? 0.1 : 0.2,
                                       ),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
@@ -1163,20 +1086,36 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                               title: Text(
                                 item.transactionType == TransactionType.credit
                                     ? "Customer Payment"
-                                    : item.categoryId,
+                                    : EntryCategory.getLabel(item.categoryId),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
                                 ),
                               ),
-                              subtitle: Text(
-                                item.transactionType == TransactionType.credit
-                                    ? item.description
-                                    : item.categoryId.endsWith('-M') ||
-                                          item.categoryId ==
-                                              EntryCategory.otherMiscMaterials
-                                    ? DateFormat.yMMMd().format(item.date)
-                                    : '${item.description}\n${DateFormat.yMMMd().format(item.date)}',
+                              subtitle: Builder(
+                                builder: (context) {
+                                  if (item.transactionType ==
+                                      TransactionType.credit) {
+                                    return Text(item.description);
+                                  }
+
+                                  String desc = item.description;
+                                  if (item.categoryId ==
+                                          EntryCategory.otherMiscMaterials &&
+                                      desc.contains(': ')) {
+                                    desc = desc.split(': ').skip(1).join(': ');
+                                  }
+
+                                  final dateStr = DateFormat.yMMMd().format(
+                                    item.date,
+                                  );
+                                  if (item.categoryId.endsWith('-M') ||
+                                      item.categoryId ==
+                                          EntryCategory.otherMiscMaterials) {
+                                    return Text(dateStr);
+                                  }
+                                  return Text('$desc\n$dateStr');
+                                },
                               ),
                               isThreeLine: true,
                               trailing: Row(
@@ -1351,136 +1290,6 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     );
   }
 
-  Future<void> _generatePdfReport(
-    BuildContext context,
-    String projectId,
-  ) async {
-    final budgetProvider = Provider.of<BudgetProvider>(context, listen: false);
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final project = budgetProvider.projects.firstWhere(
-      (p) => p.id == projectId,
-    );
-
-    final userName =
-        authProvider.user?.displayName ??
-        authProvider.user?.email?.split('@').first ??
-        'User';
-
-    String safeCurrency(double amount) {
-      return CurrencyUtils.formatInr(amount).replaceAll('₹', 'Rs. ');
-    }
-
-    final pdf = pw.Document();
-
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        build: (pw.Context context) {
-          return [
-            pw.Header(
-              level: 0,
-              child: pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text(
-                    'Project Report: ${project.name}',
-                    style: pw.TextStyle(
-                      fontSize: 24,
-                      fontWeight: pw.FontWeight.bold,
-                    ),
-                  ),
-                  pw.Text(DateFormat.yMMMd().format(DateTime.now())),
-                ],
-              ),
-            ),
-            pw.SizedBox(height: 8),
-            pw.Text(
-              'Prepared by: $userName',
-              style: pw.TextStyle(fontSize: 14, color: PdfColors.grey700),
-            ),
-            pw.SizedBox(height: 12),
-            pw.Text(
-              'Summary',
-              style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
-            ),
-            pw.Divider(),
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text('Total Budget:'),
-                pw.Text(safeCurrency(project.budget)),
-              ],
-            ),
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text('Total Received:'),
-                pw.Text(safeCurrency(project.totalReceived)),
-              ],
-            ),
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text('Total Spent:'),
-                pw.Text(safeCurrency(project.totalSpent)),
-              ],
-            ),
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text('Remaining:'),
-                pw.Text(
-                  safeCurrency(project.cashOnHand),
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                ),
-              ],
-            ),
-            pw.SizedBox(height: 30),
-            pw.Text(
-              'Transactions',
-              style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
-            ),
-            pw.Divider(),
-            pw.TableHelper.fromTextArray(
-              headers: ['Date', 'Description', 'Category', 'Type', 'Amount'],
-              data: [
-                ...project.entries
-                    .where((e) => e.transactionType == TransactionType.credit)
-                    .map(
-                      (r) => [
-                        DateFormat.yMMMd().format(r.date),
-                        r.description,
-                        r.categoryId,
-                        'IN',
-                        safeCurrency(r.amount),
-                      ],
-                    ),
-                ...project.entries
-                    .where((e) => e.transactionType == TransactionType.expense)
-                    .map(
-                      (e) => [
-                        DateFormat.yMMMd().format(e.date),
-                        e.description,
-                        e.categoryId,
-                        'OUT',
-                        safeCurrency(e.amount),
-                      ],
-                    ),
-              ],
-              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-              cellAlignment: pw.Alignment.centerLeft,
-            ),
-          ];
-        },
-      ),
-    );
-
-    await Printing.layoutPdf(
-      onLayout: (PdfPageFormat format) async => pdf.save(),
-      name: '${project.name}_Report.pdf',
-    );
-  }
-
   Widget _buildRiskBadge(String riskLevel) {
     Color color;
     switch (riskLevel) {
@@ -1491,6 +1300,8 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
         color = Colors.orange;
         break;
       case 'High':
+      case 'High (Budget)':
+      case 'Critical (Budget)':
       case 'Critical (Overdue)':
         color = Colors.red;
         break;

@@ -317,9 +317,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   borderRadius: BorderRadius.circular(14),
                                 ),
                                 side: BorderSide(
-                                  color: colorScheme.primary.withValues(
-                                    alpha: 0.4,
-                                  ),
+                                  color: colorScheme.primary.withValues(alpha: 0.4),
                                 ),
                               ),
                             ),

@@ -67,6 +67,36 @@ class EntryCategory {
     additionalWorks,
     miscExp,
   ];
+
+  static String getLabel(String categoryId) {
+    const labels = {
+      paymentReceived: 'Payment Received',
+      cementM: 'Cement',
+      sandM: 'Sand',
+      aggregateM: 'Aggregate / Jelly',
+      bricksM: 'Bricks',
+      steelM: 'Steel / TMT',
+      electricalM: 'Electrical (Material)',
+      plumbingM: 'Plumbing (Material)',
+      carpentryM: 'Carpentry / Wood',
+      grillM: 'Grill / MS Work',
+      tileM: 'Tiles',
+      paintM: 'Paint (Material)',
+      rmcM: 'RMC (Ready Mix)',
+      masonL: 'Mason / Labour',
+      electricalL: 'Electrician (Labour)',
+      plumbingL: 'Plumber (Labour)',
+      carpentryL: 'Carpenter (Labour)',
+      tileL: 'Tile Fixer (Labour)',
+      paintL: 'Painter (Labour)',
+      miscL: 'Misc Labour',
+      planApproval: 'Plan Approval / Permit',
+      otherMiscMaterials: 'Other Materials',
+      additionalWorks: 'Additional Works',
+      miscExp: 'Miscellaneous',
+    };
+    return labels[categoryId] ?? categoryId;
+  }
 }
 
 enum PaymentMode { cash, cheque, online }
@@ -93,6 +123,14 @@ class ConstructionEntry {
   final String? attachmentUrl;
   final String? payableId; // Link to Accounts Payable if needed
 
+  // Receipt specific fields
+  final String? receiptNumber;
+  final String? receiverName;
+  final String? amountInWords;
+  final DateTime? paymentDate;
+  final String? bankName;
+  final String? branchName;
+
   ConstructionEntry({
     String? id,
     required this.projectId,
@@ -107,6 +145,12 @@ class ConstructionEntry {
     this.referenceData,
     this.attachmentUrl,
     this.payableId,
+    this.receiptNumber,
+    this.receiverName,
+    this.amountInWords,
+    this.paymentDate,
+    this.bankName,
+    this.branchName,
   }) : id = id ?? uuid.v4();
 
   double get amount => quantity * rate;
@@ -207,6 +251,14 @@ class ConstructionEntry {
       referenceData: refData,
       attachmentUrl: json['attachmentUrl'] as String?,
       payableId: json['payableId'] as String?,
+      receiptNumber: json['receiptNumber'] as String?,
+      receiverName: json['receiverName'] as String?,
+      amountInWords: json['amountInWords'] as String?,
+      paymentDate: json['paymentDate'] != null
+          ? DateTime.parse(json['paymentDate'] as String)
+          : null,
+      bankName: json['bankName'] as String?,
+      branchName: json['branchName'] as String?,
     );
   }
 
@@ -225,6 +277,12 @@ class ConstructionEntry {
       'referenceData': referenceData,
       'attachmentUrl': attachmentUrl,
       'payableId': payableId,
+      'receiptNumber': receiptNumber,
+      'receiverName': receiverName,
+      'amountInWords': amountInWords,
+      'paymentDate': paymentDate?.toIso8601String(),
+      'bankName': bankName,
+      'branchName': branchName,
     };
   }
 

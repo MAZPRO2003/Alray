@@ -43,6 +43,7 @@ class _ProjectsListScreenState extends State<ProjectsListScreen>
   }
 
   String _getStatus(Project p) {
+    if (p.isCompleted) return 'Completed';
     final now = DateTime.now();
     if (p.endDate != null && p.endDate!.isBefore(now)) return 'Completed';
     if (p.startDate != null && p.startDate!.isAfter(now)) return 'Upcoming';
@@ -254,9 +255,12 @@ class _ProjectsListScreenState extends State<ProjectsListScreen>
                             Row(
                               children: [
                                 _badge(status, statusColor),
-                                const SizedBox(width: 8),
-                                _badge(healthLabel, healthColor),
-                                if (daysLeft != null) ...[
+                                if (status != 'Completed') ...[
+                                  const SizedBox(width: 8),
+                                  _badge(healthLabel, healthColor),
+                                ],
+                                if (daysLeft != null &&
+                                    status != 'Completed') ...[
                                   const SizedBox(width: 8),
                                   _badge(
                                     daysLeft >= 0
@@ -345,7 +349,9 @@ class _ProjectsListScreenState extends State<ProjectsListScreen>
                   ),
 
                   // Dates
-                  if (project.startDate != null || project.endDate != null) ...[
+                  if (status != 'Completed' &&
+                      (project.startDate != null ||
+                          project.endDate != null)) ...[
                     const SizedBox(height: 10),
                     Row(
                       children: [

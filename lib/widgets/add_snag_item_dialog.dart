@@ -86,7 +86,7 @@ class _AddSnagItemDialogState extends State<AddSnagItemDialog> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error saving snag item: $e')));
+        ).showSnackBar(SnackBar(content: Text('Error saving issue: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -124,9 +124,7 @@ class _AddSnagItemDialogState extends State<AddSnagItemDialog> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  widget.existingSnag == null
-                      ? 'Add Snag / Defect'
-                      : 'Edit Snag / Defect',
+                  widget.existingSnag == null ? 'Add Issue' : 'Edit Issue',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -233,7 +231,7 @@ class _AddSnagItemDialogState extends State<AddSnagItemDialog> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text('Save Snag'),
+                          : const Text('Save Issue'),
                     ),
                   ],
                 ),

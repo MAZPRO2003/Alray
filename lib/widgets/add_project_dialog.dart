@@ -19,6 +19,7 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
   DateTime? _startDate;
   DateTime? _endDate;
   bool _isLoading = false;
+  bool _isActive = true;
 
   Future<void> _submitData() async {
     if (!_formKey.currentState!.validate()) return;
@@ -34,12 +35,29 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
       return;
     }
 
+    // Auto-adjust start date based on selection if not manually picked
+    DateTime? finalStartDate = _startDate;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    if (_isActive) {
+      // For active, if no date selected or future date selected, force it to today
+      if (finalStartDate == null || finalStartDate.isAfter(now)) {
+        finalStartDate = today;
+      }
+    } else {
+      // For upcoming, force start date to be at least tomorrow if not already in future
+      if (finalStartDate == null || !finalStartDate.isAfter(now)) {
+        finalStartDate = today.add(const Duration(days: 1));
+      }
+    }
+
     setState(() => _isLoading = true);
     try {
       await Provider.of<BudgetProvider>(context, listen: false).addProject(
         enteredName,
         enteredBudget,
-        startDate: _startDate,
+        startDate: finalStartDate,
         endDate: _endDate,
         customerPhone: enteredPhone.isEmpty ? null : enteredPhone,
       );
@@ -64,6 +82,7 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: SingleChildScrollView(
@@ -80,13 +99,44 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
               children: [
                 Text(
                   'Add Project',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.primary,
+                    color: theme.colorScheme.primary,
                   ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
+
+                // Status Selection
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _statusButton(
+                          label: 'Active',
+                          isSelected: _isActive,
+                          onTap: () => setState(() => _isActive = true),
+                          activeColor: Colors.green,
+                        ),
+                      ),
+                      Expanded(
+                        child: _statusButton(
+                          label: 'Upcoming',
+                          isSelected: !_isActive,
+                          onTap: () => setState(() => _isActive = false),
+                          activeColor: Colors.orange,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(labelText: 'Project Name'),
@@ -203,6 +253,43 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _statusButton({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+    required Color activeColor,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? activeColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: activeColor.withValues(alpha: 0.3),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.grey.shade600,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            fontSize: 13,
           ),
         ),
       ),

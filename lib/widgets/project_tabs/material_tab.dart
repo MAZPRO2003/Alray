@@ -3,18 +3,25 @@ import 'package:alray_app/models/project.dart';
 import 'package:alray_app/models/construction_entry.dart';
 import 'package:alray_app/utils/currency_utils.dart';
 import 'package:intl/intl.dart';
+import 'package:alray_app/models/payable.dart';
 import 'package:alray_app/widgets/transaction_details_dialog.dart';
 
-class MaterialTab extends StatelessWidget {
+class MaterialTab extends StatefulWidget {
   final Project project;
 
   const MaterialTab({super.key, required this.project});
 
   @override
+  State<MaterialTab> createState() => _MaterialTabState();
+}
+
+class _MaterialTabState extends State<MaterialTab> {
+  bool _showPending = false;
+
+  @override
   Widget build(BuildContext context) {
-    // Filter material entries
     final materialEntries =
-        project.entries
+        widget.project.entries
             .where(
               (e) =>
                   e.transactionType == TransactionType.expense &&
@@ -24,55 +31,314 @@ class MaterialTab extends StatelessWidget {
             .toList()
           ..sort((a, b) => b.date.compareTo(a.date));
 
-    if (materialEntries.isEmpty) {
-      return const Center(child: Text('No material entries found.'));
+    final totalSpent = materialEntries.fold(0.0, (sum, e) => sum + e.amount);
+
+    // Filter relevant payables
+    final materialPayables = widget.project.payables
+        .where(
+          (p) =>
+              p.categoryId.endsWith('-M') ||
+              p.categoryId == EntryCategory.otherMiscMaterials,
+        )
+        .toList();
+
+    // Calculate actual pending amount (remaining balance)
+    double pendingAmount = 0;
+    final List<Map<String, dynamic>> pendingItems = [];
+
+    for (var p in materialPayables) {
+      final paidForPayable = widget.project.entries
+          .where((e) => e.payableId == p.id)
+          .fold(0.0, (s, e) => s + e.amount);
+      final remaining = p.totalAmount - paidForPayable;
+      if (remaining > 0) {
+        pendingAmount += remaining;
+        pendingItems.add({'payable': p, 'remaining': remaining});
+      }
     }
 
-    // Group entries if necessary, or just display a list
-    // For now, let's display a master ledger
+    final pendingExpenseIds = widget.project.entries
+        .where((e) => e.payableId != null)
+        .map((e) => e.id)
+        .toSet();
+
     return CustomScrollView(
       slivers: [
-        SliverPadding(
-          padding: const EdgeInsets.all(16.0),
-          sliver: SliverList(
-            delegate: SliverChildBuilderDelegate((ctx, index) {
-              final item = materialEntries[index];
-              return Card(
-                child: InkWell(
-                  onTap: () => TransactionDetailsDialog.show(
-                    context,
-                    item,
-                    project.name,
-                  ),
-                  child: ListTile(
-                    leading: const Icon(Icons.inventory_2, color: Colors.green),
-                    title: Text(
-                      item.categoryId,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Text(
-                      '${item.description}\n${DateFormat.yMMMd().format(item.date)}',
-                    ),
-                    isThreeLine: true,
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          CurrencyUtils.formatInr(item.amount),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.red,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }, childCount: materialEntries.length),
+        // Summary banner
+        SliverToBoxAdapter(
+          child: _SummaryBanner(
+            totalSpent: totalSpent,
+            pendingAmount: pendingAmount,
+            color: Colors.green.shade700,
+            showPending: _showPending,
+            onToggle: (val) => setState(() => _showPending = val),
           ),
         ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          sliver: _showPending
+              ? _buildPendingList(pendingItems)
+              : _buildPaidList(materialEntries, pendingExpenseIds),
+        ),
       ],
+    );
+  }
+
+  Widget _buildPaidList(
+    List<ConstructionEntry> entries,
+    Set<String> pendingIds,
+  ) {
+    if (entries.isEmpty) {
+      return const SliverFillRemaining(
+        hasScrollBody: false,
+        child: Center(child: Text('No paid material entries found.')),
+      );
+    }
+    return SliverList(
+      delegate: SliverChildBuilderDelegate((ctx, index) {
+        final item = entries[index];
+        final isPartiallyPaid = pendingIds.contains(item.id);
+        return Card(
+          child: InkWell(
+            onTap: () => TransactionDetailsDialog.show(
+              context,
+              item,
+              widget.project.name,
+            ),
+            child: ListTile(
+              leading: const Icon(Icons.inventory_2, color: Colors.green),
+              title: Builder(
+                builder: (context) {
+                  String title = EntryCategory.getLabel(item.categoryId);
+                  if (item.categoryId == EntryCategory.otherMiscMaterials &&
+                      item.description.contains(': ')) {
+                    title = item.description.split(': ').first;
+                  }
+                  return Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  );
+                },
+              ),
+              subtitle: Builder(
+                builder: (context) {
+                  String desc = item.description;
+                  if (item.categoryId == EntryCategory.otherMiscMaterials &&
+                      desc.contains(': ')) {
+                    desc = desc.split(': ').skip(1).join(': ');
+                  }
+                  return Text('$desc\n${DateFormat.yMMMd().format(item.date)}');
+                },
+              ),
+              isThreeLine: true,
+              trailing: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    CurrencyUtils.formatInr(item.amount),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red,
+                    ),
+                  ),
+                  if (isPartiallyPaid)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'From Bill',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.orange,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }, childCount: entries.length),
+    );
+  }
+
+  Widget _buildPendingList(List<Map<String, dynamic>> items) {
+    if (items.isEmpty) {
+      return const SliverFillRemaining(
+        hasScrollBody: false,
+        child: Center(child: Text('No pending material bills found.')),
+      );
+    }
+    return SliverList(
+      delegate: SliverChildBuilderDelegate((ctx, index) {
+        final p = items[index]['payable'] as Payable;
+        final remaining = items[index]['remaining'] as double;
+        return Card(
+          child: ListTile(
+            leading: const Icon(Icons.receipt_long, color: Colors.orange),
+            title: Text(
+              p.vendorName,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${EntryCategory.getLabel(p.categoryId)} • Due ${DateFormat.yMMMd().format(p.dueDate)}',
+                ),
+                if (p.quantity != 1.0 || p.rate != p.totalAmount)
+                  Text(
+                    '${p.quantity} x ${CurrencyUtils.formatInr(p.rate)}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blueGrey,
+                    ),
+                  ),
+                Text(p.description),
+              ],
+            ),
+            isThreeLine: true,
+            trailing: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                const Text(
+                  'Owed',
+                  style: TextStyle(fontSize: 10, color: Colors.grey),
+                ),
+                Text(
+                  CurrencyUtils.formatInr(remaining),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }, childCount: items.length),
+    );
+  }
+}
+
+// ─── Shared Summary Banner ───────────────────────────────────────────────────
+
+class _SummaryBanner extends StatelessWidget {
+  final double totalSpent;
+  final double pendingAmount;
+  final Color color;
+  final bool showPending;
+  final ValueChanged<bool> onToggle;
+
+  const _SummaryBanner({
+    required this.totalSpent,
+    required this.pendingAmount,
+    required this.color,
+    required this.showPending,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: _statCard(
+              'Actual Paid',
+              CurrencyUtils.formatInr(totalSpent),
+              Colors.red.shade700,
+              Icons.payments_outlined,
+              !showPending,
+              () => onToggle(false),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _statCard(
+              'Still Pending',
+              CurrencyUtils.formatInr(pendingAmount),
+              pendingAmount > 0 ? Colors.orange.shade800 : Colors.grey,
+              Icons.hourglass_bottom_rounded,
+              showPending,
+              () => onToggle(true),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statCard(
+    String label,
+    String value,
+    Color color,
+    IconData icon,
+    bool isActive,
+    VoidCallback onTap,
+  ) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        decoration: BoxDecoration(
+          color: isActive ? color.withValues(alpha: 0.12) : color.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isActive ? color : color.withValues(alpha: 0.1),
+            width: isActive ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 14,
+                  color: isActive ? color : color.withValues(alpha: 0.5),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: isActive ? color : color.withValues(alpha: 0.5),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: isActive ? color : color.withValues(alpha: 0.7),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

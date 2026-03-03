@@ -37,4 +37,8 @@ class CurrencyUtils {
       }
     }
   }
+
+  static String formatInrSafe(double amount) {
+    return formatInr(amount).replaceAll('₹', 'Rs. ');
+  }
 }

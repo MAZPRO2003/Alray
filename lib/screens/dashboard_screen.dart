@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:alray_app/providers/budget_provider.dart';
 import 'package:alray_app/providers/contacts_provider.dart';
-import 'package:alray_app/providers/attendance_provider.dart';
 import 'package:alray_app/models/construction_entry.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -28,10 +27,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           listen: false,
         ).fetchAndSetProjects(),
         Provider.of<ContactsProvider>(context, listen: false).fetchContacts(),
-        Provider.of<AttendanceProvider>(
-          context,
-          listen: false,
-        ).fetchAttendances(),
       ]);
     });
   }
@@ -49,8 +44,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final theme = Theme.of(context);
     final primaryColor = theme.colorScheme.primary;
 
-    return Consumer3<BudgetProvider, ContactsProvider, AttendanceProvider>(
-      builder: (context, budgetProvider, contactsProvider, attendanceProvider, _) {
+    return Consumer2<BudgetProvider, ContactsProvider>(
+      builder: (context, budgetProvider, contactsProvider, _) {
         // ── This Week Calculations ─────────────────────────────────────────
         final now = DateTime.now();
         final weekStart = now.subtract(Duration(days: now.weekday - 1));
@@ -76,20 +71,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
         // ── Active projects ────────────────────────────────────────────────
         final projects = budgetProvider.projects;
         final activeProjects = projects.where((p) {
+          if (p.isCompleted) return false;
           if (p.endDate == null) return true;
           return p.endDate!.isAfter(now);
         }).toList();
 
-        // ── Today's attendance count ───────────────────────────────────────
-        final todayStr = DateFormat('yyyy-MM-dd').format(now);
-        int todayWorkers = 0;
-        for (final att in attendanceProvider.attendances) {
-          if (DateFormat('yyyy-MM-dd').format(att.date) == todayStr) {
-            todayWorkers +=
-                att.presentWorkerIds.length +
-                att.workerCounts.values.fold<int>(0, (s, c) => s + c);
-          }
-        }
+        // ── Pending payment calculations ──────────────────────────────────
+        final totalPending = projects.fold(
+          0.0,
+          (s, p) => s + p.pendingPayablesTotal,
+        );
 
         // ── Activity feed ─────────────────────────────────────────────────
         final sortedEntries = List<ConstructionEntry>.from(allEntries)
@@ -103,7 +94,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               await Future.wait([
                 budgetProvider.fetchAndSetProjects(),
                 contactsProvider.fetchContacts(),
-                attendanceProvider.fetchAttendances(),
               ]);
             },
             child: CustomScrollView(
@@ -167,7 +157,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       // ── Quick Stats Row ───────────────────────────────
                       _buildQuickStats(
                         activeProjects.length,
-                        todayWorkers,
+                        totalPending,
                         contactsProvider.contacts.length,
                         primaryColor,
                       ).animate().fadeIn(duration: 400.ms, delay: 100.ms),
@@ -195,6 +185,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               return _buildProjectChip(
                                 project.name,
                                 health,
+                                project.pendingPayablesTotal,
                                 () {
                                   context.push(
                                     '/projects/details/${project.id}',
@@ -355,7 +346,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildQuickStats(
     int projects,
-    int workers,
+    double totalPending,
     int contacts,
     Color primaryColor,
   ) {
@@ -371,10 +362,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(width: 12),
           _quickStatCard(
-            workers.toString(),
-            'Workers Today',
-            Icons.how_to_reg_outlined,
-            const Color(0xFF4CAF50),
+            _formatCurrency(totalPending),
+            'Pending Payment',
+            Icons.hourglass_bottom_rounded,
+            const Color(0xFFE91E63),
           ),
           const SizedBox(width: 12),
           _quickStatCard(
@@ -455,7 +446,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildProjectChip(String name, String health, VoidCallback onTap) {
+  Widget _buildProjectChip(
+    String name,
+    String health,
+    double pendingAmount,
+    VoidCallback onTap,
+  ) {
     final color = health == 'Great'
         ? Colors.green
         : health == 'Good'
@@ -495,11 +491,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             Text(
               name,
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.outfit(
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Pending: Rs. ${pendingAmount.toInt()}',
+              style: TextStyle(
+                color: pendingAmount > 0 ? Colors.red : Colors.grey,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
               ),
             ),
             const Icon(Icons.arrow_forward, size: 14, color: Colors.grey),

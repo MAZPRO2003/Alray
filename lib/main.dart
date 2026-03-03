@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:alray_app/providers/budget_provider.dart';
 import 'package:alray_app/providers/auth_provider.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:alray_app/providers/attendance_provider.dart';
 import 'package:alray_app/routes/app_router.dart';
 import 'package:alray_app/firebase_options.dart';
 import 'package:alray_app/providers/contacts_provider.dart';
@@ -100,11 +99,6 @@ class _MyAppState extends State<MyApp> {
           create: (_) => ContactsProvider(),
           update: (_, auth, contacts) =>
               contacts!..updateUserId(auth.user?.uid),
-        ),
-        ChangeNotifierProxyProvider<AuthProvider, AttendanceProvider>(
-          create: (_) => AttendanceProvider(),
-          update: (_, auth, attendance) =>
-              attendance!..updateUserId(auth.user?.uid),
         ),
       ],
       child: Consumer<ThemeProvider>(

@@ -20,9 +20,10 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
   final _rateController = TextEditingController();
   final _qtyController = TextEditingController(text: '1.0');
   final _chequeDetailsController = TextEditingController();
+  final _customMaterialController = TextEditingController();
 
   DateTime _selectedDate = DateTime.now();
-  String _selectedCategory = EntryCategory.allCategories.first;
+  String _selectedCategory = EntryCategory.cementM;
   PaymentMode _selectedPaymentMethod = PaymentMode.cash;
   bool _isLoading = false;
 
@@ -46,6 +47,13 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
     if (!_formKey.currentState!.validate()) return;
 
     final enteredDesc = _descController.text.trim();
+    final customMaterial = _customMaterialController.text.trim();
+
+    String finalDesc = enteredDesc;
+    if (_selectedCategory == EntryCategory.otherMiscMaterials &&
+        customMaterial.isNotEmpty) {
+      finalDesc = '$customMaterial: $enteredDesc';
+    }
     final enteredRate = double.tryParse(_rateController.text);
     final enteredQty = double.tryParse(_qtyController.text);
 
@@ -75,7 +83,7 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
     try {
       final newEntry = ConstructionEntry(
         projectId: widget.projectId,
-        description: enteredDesc,
+        description: finalDesc,
         transactionType: TransactionType.expense,
         categoryId: _selectedCategory,
         rate: enteredRate,
@@ -114,6 +122,7 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
     _rateController.dispose();
     _qtyController.dispose();
     _chequeDetailsController.dispose();
+    _customMaterialController.dispose();
     super.dispose();
   }
 
@@ -143,27 +152,31 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
                 ),
                 const SizedBox(height: 32),
 
-                // 1. Category Selection
-                DropdownButtonFormField<String>(
-                  value: _selectedCategory,
-                  decoration: const InputDecoration(
-                    labelText: 'Expense Category / Sheet',
-                    prefixIcon: Icon(Icons.category_outlined),
-                  ),
-                  items: EntryCategory.allCategories.map((category) {
-                    return DropdownMenuItem(
-                      value: category,
-                      child: Text(category),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _selectedCategory = value;
-                      });
-                    }
-                  },
+                // 1. Category Selection — Grouped Picker
+                _GroupedCategoryPicker(
+                  selectedCategory: _selectedCategory,
+                  onChanged: (val) => setState(() => _selectedCategory = val),
                 ),
+
+                if (_selectedCategory == EntryCategory.otherMiscMaterials) ...[
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: _customMaterialController,
+                    decoration: const InputDecoration(
+                      labelText: 'Material Name',
+                      hintText: 'e.g., Glass Blocks, Temporary Toilet',
+                      prefixIcon: Icon(Icons.inventory_2),
+                    ),
+                    textCapitalization: TextCapitalization.words,
+                    validator: (v) =>
+                        (_selectedCategory ==
+                                EntryCategory.otherMiscMaterials &&
+                            (v == null || v.trim().isEmpty))
+                        ? 'Material name is required'
+                        : null,
+                  ),
+                ],
+
                 const SizedBox(height: 20),
 
                 // 2. Quantity and Rate
@@ -378,6 +391,302 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+const _categoryGroups = {
+  'Material': [
+    EntryCategory.cementM,
+    EntryCategory.sandM,
+    EntryCategory.aggregateM,
+    EntryCategory.bricksM,
+    EntryCategory.steelM,
+    EntryCategory.rmcM,
+    EntryCategory.electricalM,
+    EntryCategory.plumbingM,
+    EntryCategory.carpentryM,
+    EntryCategory.grillM,
+    EntryCategory.tileM,
+    EntryCategory.paintM,
+    EntryCategory.otherMiscMaterials,
+  ],
+  'Labour': [
+    EntryCategory.masonL,
+    EntryCategory.electricalL,
+    EntryCategory.plumbingL,
+    EntryCategory.carpentryL,
+    EntryCategory.tileL,
+    EntryCategory.paintL,
+    EntryCategory.miscL,
+  ],
+  'Specialized': [
+    EntryCategory.planApproval,
+    EntryCategory.additionalWorks,
+    EntryCategory.miscExp,
+  ],
+};
+
+const _categoryLabels = {
+  EntryCategory.cementM: 'Cement',
+  EntryCategory.sandM: 'Sand',
+  EntryCategory.aggregateM: 'Aggregate / Jelly',
+  EntryCategory.bricksM: 'Bricks',
+  EntryCategory.steelM: 'Steel / TMT',
+  EntryCategory.rmcM: 'RMC (Ready Mix)',
+  EntryCategory.electricalM: 'Electrical (Material)',
+  EntryCategory.plumbingM: 'Plumbing (Material)',
+  EntryCategory.carpentryM: 'Carpentry / Wood',
+  EntryCategory.grillM: 'Grill / MS Work',
+  EntryCategory.tileM: 'Tiles',
+  EntryCategory.paintM: 'Paint (Material)',
+  EntryCategory.otherMiscMaterials: 'Other Materials',
+  EntryCategory.masonL: 'Mason / Labour',
+  EntryCategory.electricalL: 'Electrician (Labour)',
+  EntryCategory.plumbingL: 'Plumber (Labour)',
+  EntryCategory.carpentryL: 'Carpenter (Labour)',
+  EntryCategory.tileL: 'Tile Fixer (Labour)',
+  EntryCategory.paintL: 'Painter (Labour)',
+  EntryCategory.miscL: 'Misc Labour',
+  EntryCategory.planApproval: 'Plan Approval / Permit',
+  EntryCategory.additionalWorks: 'Additional Works',
+  EntryCategory.miscExp: 'Miscellaneous',
+};
+
+class _GroupedCategoryPicker extends StatelessWidget {
+  final String selectedCategory;
+  final ValueChanged<String> onChanged;
+
+  const _GroupedCategoryPicker({
+    required this.selectedCategory,
+    required this.onChanged,
+  });
+
+  String get _displayLabel =>
+      _categoryLabels[selectedCategory] ?? selectedCategory;
+
+  void _showPicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.65,
+          maxChildSize: 0.9,
+          minChildSize: 0.4,
+          builder: (_, controller) {
+            return Column(
+              children: [
+                const SizedBox(height: 12),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Select Expense Category',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                const Divider(),
+                Expanded(
+                  child: ListView(
+                    controller: controller,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    children: _categoryGroups.entries.expand((group) {
+                      return [
+                        // Group Header
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12, bottom: 6),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 4,
+                                height: 18,
+                                decoration: BoxDecoration(
+                                  color: _groupColor(group.key),
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                group.key.toUpperCase(),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  color: _groupColor(group.key),
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Sub-items
+                        ...group.value.map((cat) {
+                          final isSelected = cat == selectedCategory;
+                          return ListTile(
+                            dense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 2,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            tileColor: isSelected
+                                ? _groupColor(group.key).withValues(alpha: 0.12)
+                                : null,
+                            leading: Icon(
+                              _groupIcon(group.key),
+                              size: 18,
+                              color: isSelected
+                                  ? _groupColor(group.key)
+                                  : Colors.grey,
+                            ),
+                            title: Text(
+                              _categoryLabels[cat] ?? cat,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                                color: isSelected
+                                    ? _groupColor(group.key)
+                                    : null,
+                              ),
+                            ),
+                            trailing: isSelected
+                                ? Icon(
+                                    Icons.check_circle,
+                                    color: _groupColor(group.key),
+                                    size: 18,
+                                  )
+                                : null,
+                            onTap: () {
+                              onChanged(cat);
+                              Navigator.pop(ctx);
+                            },
+                          );
+                        }),
+                      ];
+                    }).toList(),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Color _groupColor(String group) {
+    switch (group) {
+      case 'Material':
+        return Colors.green.shade700;
+      case 'Labour':
+        return Colors.orange.shade700;
+      default:
+        return Colors.indigo;
+    }
+  }
+
+  IconData _groupIcon(String group) {
+    switch (group) {
+      case 'Material':
+        return Icons.inventory_2_outlined;
+      case 'Labour':
+        return Icons.construction;
+      default:
+        return Icons.more_horiz;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Detect the group of selected category
+    String? groupName;
+    for (final e in _categoryGroups.entries) {
+      if (e.value.contains(selectedCategory)) {
+        groupName = e.key;
+        break;
+      }
+    }
+    final color = groupName != null
+        ? _groupColor(groupName)
+        : Colors.grey.shade700;
+
+    return InkWell(
+      onTap: () => _showPicker(context),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade400),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.category_outlined, color: color, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Expense Category',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      if (groupName != null) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            groupName,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: color,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Text(
+                        _displayLabel,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_drop_down, color: Colors.grey.shade600),
+          ],
         ),
       ),
     );

@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:alray_app/providers/contacts_provider.dart';
-import 'package:alray_app/providers/budget_provider.dart';
 import 'package:alray_app/models/contact.dart';
-import 'package:alray_app/models/construction_entry.dart';
 import 'package:alray_app/widgets/add_contact_note_dialog.dart';
-import 'package:alray_app/widgets/ledger_transaction_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 
 class ContactDetailsScreen extends StatelessWidget {
   final String contactId;
@@ -35,25 +32,10 @@ class ContactDetailsScreen extends StatelessWidget {
     } catch (_) {}
   }
 
-  void _showTransactionDialog(
-    BuildContext context,
-    Contact contact,
-    TransactionType type,
-  ) {
-    showDialog(
-      context: context,
-      builder: (ctx) => LedgerTransactionDialog(
-        contactId: contact.id,
-        contactName: contact.name,
-        transactionType: type,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Consumer2<ContactsProvider, BudgetProvider>(
-      builder: (context, contactsProvider, budgetProvider, child) {
+    return Consumer<ContactsProvider>(
+      builder: (context, contactsProvider, child) {
         final contactIndex = contactsProvider.contacts.indexWhere(
           (c) => c.id == contactId,
         );
@@ -66,21 +48,6 @@ class ContactDetailsScreen extends StatelessWidget {
         }
 
         final contact = contactsProvider.contacts[contactIndex];
-        final personEntries = budgetProvider.allEntries
-            .where((e) => e.contactId == contact.id)
-            .toList();
-
-        // Sort reverse chronological
-        personEntries.sort((a, b) => b.date.compareTo(a.date));
-
-        final netBalance = contact.calculateNetBalance(
-          budgetProvider.allEntries,
-        );
-        final balanceColor = netBalance == 0
-            ? Colors.grey
-            : netBalance > 0
-            ? Colors.red
-            : Colors.green;
 
         return Scaffold(
           backgroundColor: Colors.grey.shade50,
@@ -98,235 +65,203 @@ class ContactDetailsScreen extends StatelessWidget {
               ),
             ],
           ),
-          body: Column(
-            children: [
-              // ── Header: Balance ──────────────────────────────────────────
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border(
-                    bottom: BorderSide(color: Colors.grey.shade200),
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Contact Card ─────────────────────────────────────────────
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    side: BorderSide(color: Colors.grey.shade200),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Row(
+                      children: [
+                        Hero(
+                          tag: 'avatar_$contactId',
+                          child: CircleAvatar(
+                            radius: 36,
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.primaryContainer,
+                            child: Text(
+                              contact.name.isNotEmpty
+                                  ? contact.name[0].toUpperCase()
+                                  : '?',
+                              style: GoogleFonts.outfit(
+                                fontSize: 30,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onPrimaryContainer,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                contact.name,
+                                style: GoogleFonts.outfit(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.primaryContainer,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  contact.role,
+                                  style: GoogleFonts.outfit(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onPrimaryContainer,
+                                  ),
+                                ),
+                              ),
+                              if (contact.dailyWage > 0) ...[
+                                const SizedBox(height: 8),
+                                Text(
+                                  '₹${contact.dailyWage.toInt()} / day',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade700,
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 8),
+                              Text(
+                                contact.phoneNumber,
+                                style: GoogleFonts.outfit(
+                                  fontSize: 14,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                child: Column(
-                  children: [
-                    Text(
-                      'Net Balance',
-                      style: GoogleFonts.outfit(
-                        fontSize: 14,
-                        color: Colors.grey.shade600,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '₹ ${netBalance.abs().toInt()}',
-                      style: GoogleFonts.outfit(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: balanceColor,
-                      ),
-                    ),
-                    Text(
-                      netBalance == 0
-                          ? 'Settled'
-                          : netBalance > 0
-                          ? 'You Owe'
-                          : 'You Will Get',
-                      style: GoogleFonts.outfit(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: balanceColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
 
-              // ── Quick Actions Bar ────────────────────────────────────────
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                child: Row(
+                const SizedBox(height: 16),
+
+                // ── Quick Actions ─────────────────────────────────────────────
+                Row(
                   children: [
                     Expanded(
-                      child: _smallActionBtn(
-                        icon: Icons.chat_bubble_outline,
+                      child: _actionButton(
+                        context,
+                        icon: Icons.call,
+                        label: 'Call',
+                        color: Colors.green,
+                        onTap: () => _makePhoneCall(contact.phoneNumber),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _actionButton(
+                        context,
+                        icon: Icons.chat,
                         label: 'WhatsApp',
+                        color: const Color(0xFF25D366),
                         onTap: () =>
                             _openWhatsApp(context, contact.phoneNumber),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: _smallActionBtn(
+                      child: _actionButton(
+                        context,
                         icon: Icons.note_alt_outlined,
                         label: 'Notes',
+                        color: Colors.orange,
                         onTap: () => _showNotes(context, contact),
                       ),
                     ),
                   ],
                 ),
-              ),
 
-              // ── Transaction List ─────────────────────────────────────────
-              Expanded(
-                child: personEntries.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.receipt_long_outlined,
-                              size: 48,
-                              color: Colors.grey.shade300,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No transactions yet with ${contact.name}',
-                              style: TextStyle(color: Colors.grey.shade500),
-                            ),
-                          ],
+                const SizedBox(height: 24),
+
+                // ── Notes Section ─────────────────────────────────────────────
+                if (contact.noteLog.isNotEmpty) ...[
+                  Text(
+                    'Notes',
+                    style: GoogleFonts.outfit(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ...contact.noteLog.reversed.map(
+                    (note) => Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: Colors.grey.shade200),
+                      ),
+                      child: ListTile(
+                        title: Text(
+                          note.text,
+                          style: const TextStyle(fontSize: 14),
                         ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                        itemCount: personEntries.length,
-                        itemBuilder: (ctx, idx) {
-                          final entry = personEntries[idx];
-                          final isGiving =
-                              entry.transactionType == TransactionType.expense;
-
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(color: Colors.grey.shade200),
-                            ),
-                            child: ListTile(
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                              title: Text(
-                                entry.description,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              subtitle: Text(
-                                DateFormat('dd MMM yyyy').format(entry.date),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                              trailing: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    '₹ ${entry.amount.toInt()}',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                      color: isGiving
-                                          ? Colors.red
-                                          : Colors.green,
-                                    ),
-                                  ),
-                                  Text(
-                                    isGiving ? 'You Gave' : 'You Got',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: isGiving
-                                          ? Colors.red
-                                          : Colors.green,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-              ),
-            ],
-          ),
-
-          // ── Bottom Action Buttons ────────────────────────────────────────
-          bottomSheet: Container(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -5),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red.shade50,
-                      foregroundColor: Colors.red,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: () => _showTransactionDialog(
-                      context,
-                      contact,
-                      TransactionType.expense,
-                    ),
-                    child: const Text(
-                      'YOU GAVE ₹',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        subtitle: Text(
+                          DateFormat(
+                            'dd MMM yyyy, hh:mm a',
+                          ).format(note.timestamp),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green.shade50,
-                      foregroundColor: Colors.green,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                ] else if (contact.callNotes != null &&
+                    contact.callNotes!.isNotEmpty) ...[
+                  Text(
+                    'Notes',
+                    style: GoogleFonts.outfit(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                     ),
-                    onPressed: () => _showTransactionDialog(
-                      context,
-                      contact,
-                      TransactionType.credit,
+                  ),
+                  const SizedBox(height: 12),
+                  Card(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(color: Colors.grey.shade200),
                     ),
-                    child: const Text(
-                      'YOU GOT ₹',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                    child: ListTile(
+                      title: Text(
+                        contact.callNotes!,
+                        style: const TextStyle(fontSize: 14),
                       ),
                     ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -335,28 +270,34 @@ class ContactDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _smallActionBtn({
+  Widget _actionButton(
+    BuildContext context, {
     required IconData icon,
     required String label,
+    required Color color,
     required VoidCallback onTap,
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300),
-          borderRadius: BorderRadius.circular(12),
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Column(
           children: [
-            Icon(icon, size: 18),
-            const SizedBox(width: 8),
+            Icon(icon, color: color, size: 24),
+            const SizedBox(height: 6),
             Text(
               label,
-              style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+              style: TextStyle(
+                fontSize: 12,
+                color: color,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
@@ -383,9 +324,7 @@ class ContactDetailsScreen extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Contact?'),
-        content: Text(
-          'Are you sure you want to delete ${contact.name}? All ledger history will be kept but unlinked.',
-        ),
+        content: Text('Are you sure you want to delete ${contact.name}?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),

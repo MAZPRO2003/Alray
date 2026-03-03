@@ -20,7 +20,9 @@ class ReportExporter {
       final file = File(path);
       await file.writeAsString(csv);
 
-      await Share.shareXFiles([XFile(path)], text: 'Here is the $title.');
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(path)], text: 'Here is the $title.'),
+      );
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(
@@ -102,7 +104,9 @@ class ReportExporter {
       final file = File(path);
       await file.writeAsBytes(await pdf.save());
 
-      await Share.shareXFiles([XFile(path)], text: 'Here is the $title.');
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(path)], text: 'Here is the $title.'),
+      );
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(

@@ -5,6 +5,8 @@ import 'package:alray_app/models/construction_entry.dart';
 import 'package:alray_app/models/milestone.dart';
 import 'package:alray_app/models/payable.dart';
 import 'package:alray_app/models/snag_item.dart';
+import 'package:alray_app/models/labor_task.dart';
+import 'package:alray_app/models/labor_payment.dart';
 
 class BudgetProvider with ChangeNotifier {
   List<Project> _projects = [];
@@ -23,6 +25,23 @@ class BudgetProvider with ChangeNotifier {
     List<ConstructionEntry> list = [..._globalEntries];
     for (var p in _projects) {
       list.addAll(p.entries);
+      for (var lp in p.laborPayments) {
+        list.add(
+          ConstructionEntry(
+            id: lp.id,
+            projectId: p.id,
+            date: lp.date,
+            description: lp.description.isEmpty
+                ? 'Labor Payment: ${lp.laborerName}'
+                : lp.description,
+            transactionType: TransactionType.expense,
+            categoryId: 'Labour-Payment',
+            quantity: 1,
+            rate: lp.amount,
+            paymentMode: PaymentMode.cash,
+          ),
+        );
+      }
     }
     return list;
   }
@@ -143,6 +162,14 @@ class BudgetProvider with ChangeNotifier {
             .collection('snags')
             .where('userId', isEqualTo: _userId)
             .get(),
+        _firestore
+            .collection('labor_tasks')
+            .where('userId', isEqualTo: _userId)
+            .get(),
+        _firestore
+            .collection('labor_payments')
+            .where('userId', isEqualTo: _userId)
+            .get(),
       ]);
 
       final projectsSnapshot = results[0];
@@ -152,6 +179,8 @@ class BudgetProvider with ChangeNotifier {
       final milestonesSnapshot = results[4];
       final payablesSnapshot = results[5];
       final snagsSnapshot = results[6];
+      final laborTasksSnapshot = results[7];
+      final laborPaymentsSnapshot = results[8];
 
       final List<ConstructionEntry> combinedEntries = [];
 
@@ -183,6 +212,14 @@ class BudgetProvider with ChangeNotifier {
           .map((doc) => SnagItem.fromJson(doc.data(), doc.id))
           .toList();
 
+      final List<LaborTask> allLaborTasks = laborTasksSnapshot.docs
+          .map((doc) => LaborTask.fromJson(doc.data(), doc.id))
+          .toList();
+
+      final List<LaborPayment> allLaborPayments = laborPaymentsSnapshot.docs
+          .map((doc) => LaborPayment.fromJson(doc.data(), doc.id))
+          .toList();
+
       final List<Project> loadedProjects = projectsSnapshot.docs.map((doc) {
         final projectEntries = combinedEntries
             .where((e) => e.projectId == doc.id)
@@ -195,6 +232,12 @@ class BudgetProvider with ChangeNotifier {
             .toList();
         final projectSnags = allSnags
             .where((s) => s.projectId == doc.id)
+            .toList();
+        final projectLaborTasks = allLaborTasks
+            .where((t) => t.projectId == doc.id)
+            .toList();
+        final projectLaborPayments = allLaborPayments
+            .where((p) => p.projectId == doc.id)
             .toList();
 
         projectMilestones.sort(
@@ -209,6 +252,8 @@ class BudgetProvider with ChangeNotifier {
           projectMilestones,
           projectPayables,
           projectSnags,
+          projectLaborTasks,
+          projectLaborPayments,
         );
       }).toList();
 
@@ -274,6 +319,8 @@ class BudgetProvider with ChangeNotifier {
       milestones: [],
       payables: [],
       snagItems: [],
+      laborTasks: [],
+      laborPayments: [],
     );
 
     _projects.add(newProject);
@@ -316,6 +363,8 @@ class BudgetProvider with ChangeNotifier {
         milestones: old.milestones,
         payables: old.payables,
         snagItems: old.snagItems,
+        laborTasks: old.laborTasks,
+        laborPayments: old.laborPayments,
       );
       notifyListeners();
     }
@@ -340,6 +389,8 @@ class BudgetProvider with ChangeNotifier {
         'milestones',
         'payables',
         'snags',
+        'labor_tasks',
+        'labor_payments',
       ];
       for (var coll in collections) {
         final snap = await _firestore
@@ -379,6 +430,12 @@ class BudgetProvider with ChangeNotifier {
       referenceData: entry.referenceData,
       attachmentUrl: entry.attachmentUrl,
       payableId: entry.payableId,
+      receiptNumber: entry.receiptNumber,
+      receiverName: entry.receiverName,
+      amountInWords: entry.amountInWords,
+      paymentDate: entry.paymentDate,
+      bankName: entry.bankName,
+      branchName: entry.branchName,
     );
 
     if (entry.projectId.isEmpty) {
@@ -622,6 +679,131 @@ class BudgetProvider with ChangeNotifier {
       await _firestore.collection('snags').doc(snagId).delete();
     } catch (e, st) {
       debugPrint('removeSnagItem error: $e\n$st');
+      await fetchAndSetProjects();
+    }
+  }
+
+  // ── Labor Tasks ──────────────────────────────────────────────────────────
+
+  Future<void> addLaborTask(LaborTask task) async {
+    if (_userId == null) return;
+    final data = task.toJson();
+    data['userId'] = _userId;
+
+    final docRef = await _firestore.collection('labor_tasks').add(data);
+    final addedTask = task.copyWith(id: docRef.id);
+
+    final projectIndex = _projects.indexWhere((p) => p.id == task.projectId);
+    if (projectIndex >= 0) {
+      _projects[projectIndex].laborTasks.add(addedTask);
+      notifyListeners();
+    }
+  }
+
+  Future<void> updateLaborTaskPercentage(
+    String projectId,
+    String taskId,
+    double percentage,
+  ) async {
+    final projectIndex = _projects.indexWhere((p) => p.id == projectId);
+    if (projectIndex >= 0) {
+      final taskIndex = _projects[projectIndex].laborTasks.indexWhere(
+        (t) => t.id == taskId,
+      );
+      if (taskIndex >= 0) {
+        final task = _projects[projectIndex].laborTasks[taskIndex];
+        DateTime? newEndDate = task.endDate;
+        bool clearEndDate = false;
+
+        if (percentage >= 1.0) {
+          newEndDate = DateTime.now();
+        } else if (task.completionPercentage >= 1.0 && percentage < 1.0) {
+          newEndDate = null;
+          clearEndDate = true;
+        }
+
+        _projects[projectIndex].laborTasks[taskIndex] = task.copyWith(
+          completionPercentage: percentage,
+          endDate: newEndDate,
+          clearEndDate: clearEndDate,
+        );
+        notifyListeners();
+        try {
+          await _firestore.collection('labor_tasks').doc(taskId).update({
+            'completionPercentage': percentage,
+            'endDate': task.endDate != null
+                ? Timestamp.fromDate(task.endDate!)
+                : null,
+          });
+        } catch (e, st) {
+          debugPrint('updateLaborTaskPercentage error: $e\n$st');
+          await fetchAndSetProjects();
+        }
+      }
+    }
+  }
+
+  Future<void> removeLaborTask(String projectId, String taskId) async {
+    final projectIndex = _projects.indexWhere((p) => p.id == projectId);
+    if (projectIndex >= 0) {
+      _projects[projectIndex].laborTasks.removeWhere((t) => t.id == taskId);
+      notifyListeners();
+    }
+    try {
+      await _firestore.collection('labor_tasks').doc(taskId).delete();
+    } catch (e, st) {
+      debugPrint('removeLaborTask error: $e\n$st');
+      await fetchAndSetProjects();
+    }
+  }
+
+  // ── Labor Payments ────────────────────────────────────────────────────────
+
+  Future<void> addLaborPayment(LaborPayment payment) async {
+    if (_userId == null) return;
+    final data = payment.toJson();
+    data['userId'] = _userId;
+
+    final docRef = await _firestore.collection('labor_payments').add(data);
+    final addedPayment = payment.copyWith(id: docRef.id);
+
+    final projectIndex = _projects.indexWhere((p) => p.id == payment.projectId);
+    if (projectIndex >= 0) {
+      _projects[projectIndex].laborPayments.add(addedPayment);
+      notifyListeners();
+    }
+  }
+
+  Future<void> updateLaborPayment(LaborPayment payment) async {
+    await _firestore
+        .collection('labor_payments')
+        .doc(payment.id)
+        .update(payment.toJson());
+
+    final projectIndex = _projects.indexWhere((p) => p.id == payment.projectId);
+    if (projectIndex >= 0) {
+      final paymentIndex = _projects[projectIndex].laborPayments.indexWhere(
+        (p) => p.id == payment.id,
+      );
+      if (paymentIndex >= 0) {
+        _projects[projectIndex].laborPayments[paymentIndex] = payment;
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> removeLaborPayment(String projectId, String paymentId) async {
+    final projectIndex = _projects.indexWhere((p) => p.id == projectId);
+    if (projectIndex >= 0) {
+      _projects[projectIndex].laborPayments.removeWhere(
+        (p) => p.id == paymentId,
+      );
+      notifyListeners();
+    }
+    try {
+      await _firestore.collection('labor_payments').doc(paymentId).delete();
+    } catch (e, st) {
+      debugPrint('removeLaborPayment error: $e\n$st');
       await fetchAndSetProjects();
     }
   }

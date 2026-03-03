@@ -5,9 +5,9 @@ import React from 'react';
  * Matches the physical signage: gold AKA house icon + bold red "AL RAY ASSOCIATES" text
  */
 const Logo = ({ className = "", showText = true, light = false, size = "md" }) => {
-    const textColor = "#e01f26";       // Bold red (matches the sign)
-    const goldColor = "#f5c000";       // Gold yellow (house + AKA + underline)
-    const textShadowColor = light ? "none" : "1px 1px 0 rgba(255,255,255,0.15)";
+    const textColor = light ? "#ffffff" : "#0a113d";    // White text at top, Deep Navy scrolled
+    const goldColor = light ? "#fcc201" : "#D4AF37";    // Bright Gold at top, Premium Gold scrolled
+    const textShadowColor = light ? "0 2px 4px rgba(0,0,0,0.2)" : "none";
 
     const sizes = {
         sm: { icon: 36, title: 16, sub: 10 },

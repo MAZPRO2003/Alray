@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:alray_app/providers/budget_provider.dart';
 import 'package:alray_app/models/construction_entry.dart';
+import 'package:alray_app/utils/inr_to_words.dart';
 import 'package:intl/intl.dart';
 
 class AddRevenueDialog extends StatefulWidget {
@@ -17,16 +18,38 @@ class _AddRevenueDialogState extends State<AddRevenueDialog> {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _receiverController = TextEditingController();
+  final _receiptNoController = TextEditingController();
+  final _bankController = TextEditingController();
+  final _branchController = TextEditingController();
+  final _amountInWordsController = TextEditingController();
+  final _chequeController = TextEditingController();
+
   String? _selectedProjectId;
+  PaymentMode _paymentMode = PaymentMode.cash;
 
   // Default to today
-  DateTime _selectedDate = DateTime.now();
+  DateTime _receiptDate = DateTime.now();
+  DateTime? _paymentDate; // Only for cheque/online
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
     _selectedProjectId = widget.projectId;
+    _amountController.addListener(_updateAmountInWords);
+    // Auto-generate a basic receipt number if possible
+    _receiptNoController.text =
+        '${DateFormat('yyyyMMdd').format(DateTime.now())}-${DateTime.now().millisecond}';
+  }
+
+  void _updateAmountInWords() {
+    final amount = double.tryParse(_amountController.text) ?? 0;
+    if (amount > 0) {
+      _amountInWordsController.text = InrToWords.convert(amount);
+    } else {
+      _amountInWordsController.text = '';
+    }
   }
 
   Future<void> _submitData() async {
@@ -49,8 +72,17 @@ class _AddRevenueDialogState extends State<AddRevenueDialog> {
         description: _descriptionController.text.trim(),
         rate: enteredAmount,
         quantity: 1,
-        date: _selectedDate,
-        attachmentUrl: null,
+        date: _receiptDate,
+        paymentMode: _paymentMode,
+        referenceData: _paymentMode == PaymentMode.cash
+            ? 'Cash'
+            : _chequeController.text,
+        receiverName: _receiverController.text.trim(),
+        receiptNumber: _receiptNoController.text.trim(),
+        amountInWords: _amountInWordsController.text.trim(),
+        bankName: _bankController.text.trim(),
+        branchName: _branchController.text.trim(),
+        paymentDate: _paymentDate ?? _receiptDate,
       );
 
       await Provider.of<BudgetProvider>(
@@ -68,22 +100,37 @@ class _AddRevenueDialogState extends State<AddRevenueDialog> {
     }
   }
 
-  void _presentDatePicker() {
-    showDatePicker(
+  void _presentDatePickers(bool isReceiptDate) async {
+    final pickedDate = await showDatePicker(
       context: context,
-      initialDate: _selectedDate,
+      initialDate: isReceiptDate
+          ? _receiptDate
+          : (_paymentDate ?? DateTime.now()),
       firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-    ).then((pickedDate) {
-      if (pickedDate == null) return;
-      setState(() => _selectedDate = pickedDate);
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+
+    if (pickedDate == null) return;
+    setState(() {
+      if (isReceiptDate) {
+        _receiptDate = pickedDate;
+      } else {
+        _paymentDate = pickedDate;
+      }
     });
   }
 
   @override
   void dispose() {
+    _amountController.removeListener(_updateAmountInWords);
     _amountController.dispose();
     _descriptionController.dispose();
+    _receiverController.dispose();
+    _receiptNoController.dispose();
+    _bankController.dispose();
+    _branchController.dispose();
+    _amountInWordsController.dispose();
+    _chequeController.dispose();
     super.dispose();
   }
 
@@ -92,34 +139,86 @@ class _AddRevenueDialogState extends State<AddRevenueDialog> {
     final projects = Provider.of<BudgetProvider>(context).projects;
 
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            left: 20,
-            right: 20,
-            top: 24,
-          ),
-          child: Form(
-            key: _formKey,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'Add Revenue',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Issue Receipt',
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 24),
+                const Divider(),
+                const SizedBox(height: 16),
 
-                // Project Selection (if not pre-selected)
-                DropdownButtonFormField<String?>(
-                  initialValue: _selectedProjectId,
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _receiptNoController,
+                        decoration: const InputDecoration(
+                          labelText: 'Receipt No.',
+                          prefixIcon: Icon(Icons.numbers),
+                        ),
+                        validator: (v) =>
+                            (v == null || v.isEmpty) ? 'Required' : null,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => _presentDatePickers(true),
+                        child: InputDecorator(
+                          decoration: const InputDecoration(
+                            labelText: 'Receipt Date',
+                            prefixIcon: Icon(Icons.calendar_today),
+                          ),
+                          child: Text(
+                            DateFormat('dd/MM/yyyy').format(_receiptDate),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                TextFormField(
+                  controller: _receiverController,
                   decoration: const InputDecoration(
-                    labelText: 'Project (Optional)',
+                    labelText: 'Received From (Customer Name)',
+                    hintText: 'e.g., Mr. Peer Mohamed',
+                    prefixIcon: Icon(Icons.person_outline),
+                  ),
+                  textCapitalization: TextCapitalization.words,
+                  validator: (v) =>
+                      (v == null || v.isEmpty) ? 'Name is required' : null,
+                ),
+                const SizedBox(height: 16),
+
+                DropdownButtonFormField<String?>(
+                  value: _selectedProjectId,
+                  decoration: const InputDecoration(
+                    labelText: 'Project',
                     prefixIcon: Icon(Icons.business_center_outlined),
                   ),
                   items: [
@@ -131,104 +230,205 @@ class _AddRevenueDialogState extends State<AddRevenueDialog> {
                       (p) => DropdownMenuItem(value: p.id, child: Text(p.name)),
                     ),
                   ],
-                  onChanged: widget.projectId != null
-                      ? null // Disable if pre-filled
-                      : (val) => setState(() => _selectedProjectId = val),
+                  onChanged: (val) => setState(() => _selectedProjectId = val),
                 ),
                 const SizedBox(height: 16),
 
                 TextFormField(
-                  decoration: const InputDecoration(
-                    labelText: 'Description',
-                    prefixIcon: Icon(Icons.description_outlined),
-                  ),
-                  controller: _descriptionController,
-                  textCapitalization: TextCapitalization.sentences,
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Description is required'
-                      : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
+                  controller: _amountController,
                   decoration: const InputDecoration(
                     labelText: 'Amount (₹)',
-                    hintText: 'e.g. 100000',
                     prefixIcon: Icon(Icons.currency_rupee),
                   ),
-                  controller: _amountController,
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
                   validator: (v) {
-                    if (v == null || v.isEmpty) return 'Amount is required';
-                    final parsed = double.tryParse(v);
-                    if (parsed == null || parsed <= 0) {
-                      return 'Enter a valid positive number';
-                    }
+                    if (v == null || v.isEmpty) return 'Required';
+                    if (double.tryParse(v) == null) return 'Invalid amount';
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
-                InkWell(
-                  onTap: _presentDatePicker,
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.calendar_month,
-                          size: 20,
-                          color: Colors.blue,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Date: ${DateFormat.yMMMd().format(_selectedDate)}',
-                          ),
-                        ),
-                        const Icon(Icons.edit, size: 16, color: Colors.grey),
-                      ],
-                    ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _amountInWordsController,
+                  decoration: const InputDecoration(
+                    labelText: 'Amount in Words',
+                    prefixIcon: Icon(Icons.text_fields),
+                  ),
+                  readOnly: true,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
                   ),
                 ),
                 const SizedBox(height: 24),
+
+                const Text(
+                  'Payment Details',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    TextButton(
-                      onPressed: _isLoading
-                          ? null
-                          : () => Navigator.of(context).pop(),
-                      child: const Text('Cancel'),
+                    _modeButton(PaymentMode.cash, 'Cash', Icons.money),
+                    const SizedBox(width: 8),
+                    _modeButton(
+                      PaymentMode.cheque,
+                      'Cheque',
+                      Icons.account_balance_wallet_outlined,
                     ),
                     const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: _isLoading ? null : _submitData,
-                      child: _isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text('Save'),
-                    ),
+                    _modeButton(PaymentMode.online, 'Online', Icons.vibration),
                   ],
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
+
+                if (_paymentMode != PaymentMode.cash) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _chequeController,
+                          decoration: InputDecoration(
+                            labelText: _paymentMode == PaymentMode.cheque
+                                ? 'Cheque No.'
+                                : 'Ref/TXN ID',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => _presentDatePickers(false),
+                          child: InputDecorator(
+                            decoration: const InputDecoration(
+                              labelText: 'Dated',
+                            ),
+                            child: Text(
+                              _paymentDate == null
+                                  ? 'Select Date'
+                                  : DateFormat(
+                                      'dd/MM/yyyy',
+                                    ).format(_paymentDate!),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _bankController,
+                          decoration: const InputDecoration(
+                            labelText: 'Drawn On (Bank)',
+                          ),
+                          textCapitalization: TextCapitalization.words,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _branchController,
+                          decoration: const InputDecoration(
+                            labelText: 'Branch',
+                          ),
+                          textCapitalization: TextCapitalization.words,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                TextFormField(
+                  controller: _descriptionController,
+                  decoration: const InputDecoration(
+                    labelText: 'Towards (Reason/Stage)',
+                    hintText: 'e.g., Construction Advance',
+                    prefixIcon: Icon(Icons.description_outlined),
+                  ),
+                  validator: (v) =>
+                      (v == null || v.isEmpty) ? 'Required' : null,
+                ),
+                const SizedBox(height: 32),
+
+                ElevatedButton(
+                  onPressed: _isLoading ? null : _submitData,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Save & Issue Receipt',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                ),
+                const SizedBox(height: 12),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _modeButton(PaymentMode mode, String label, IconData icon) {
+    bool isSelected = _paymentMode == mode;
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() => _paymentMode = mode),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? Theme.of(context).colorScheme.primary
+                : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected
+                  ? Theme.of(context).colorScheme.primary
+                  : Colors.grey.shade300,
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(
+                icon,
+                color: isSelected ? Colors.white : Colors.grey,
+                size: 20,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.grey,
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+            ],
           ),
         ),
       ),

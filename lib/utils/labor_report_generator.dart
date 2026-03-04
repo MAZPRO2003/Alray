@@ -61,7 +61,7 @@ class LaborReportGenerator {
         TextCellValue('Period Start'),
         TextCellValue('Period End'),
         TextCellValue('Date Paid'),
-        TextCellValue('Amount (Rs.)'),
+        TextCellValue('Amount (₹)'),
         TextCellValue('Description'),
       ]);
 
@@ -82,7 +82,7 @@ class LaborReportGenerator {
         null,
         null,
         null,
-        TextCellValue('Total Paid (Rs.)'),
+        TextCellValue('Total Paid (₹)'),
         DoubleCellValue(total),
       ]);
 
@@ -266,7 +266,7 @@ class LaborReportGenerator {
                   p.laborerName,
                   '${DateFormat('dd/MM').format(p.periodStart)} - ${DateFormat('dd/MM').format(p.periodEnd)}',
                   DateFormat('dd/MM/yyyy').format(p.date),
-                  CurrencyUtils.formatInrSafe(p.amount),
+                  CurrencyUtils.formatInr(p.amount),
                 ],
               )
               .toList(),
@@ -287,7 +287,7 @@ class LaborReportGenerator {
               style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
             ),
             pw.Text(
-              CurrencyUtils.formatInrSafe(total),
+              CurrencyUtils.formatInr(total),
               style: pw.TextStyle(
                 fontWeight: pw.FontWeight.bold,
                 color: PdfColors.red900,

@@ -4,11 +4,13 @@ import 'package:alray_app/providers/budget_provider.dart';
 import 'package:alray_app/models/construction_entry.dart';
 import 'package:alray_app/utils/inr_to_words.dart';
 import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 
 class AddRevenueDialog extends StatefulWidget {
   final String? projectId;
+  final ConstructionEntry? initialEntry;
 
-  const AddRevenueDialog({super.key, this.projectId});
+  const AddRevenueDialog({super.key, this.projectId, this.initialEntry});
 
   @override
   State<AddRevenueDialog> createState() => _AddRevenueDialogState();
@@ -20,6 +22,7 @@ class _AddRevenueDialogState extends State<AddRevenueDialog> {
   final _descriptionController = TextEditingController();
   final _receiverController = TextEditingController();
   final _receiptNoController = TextEditingController();
+  final _ourBankController = TextEditingController();
   final _bankController = TextEditingController();
   final _branchController = TextEditingController();
   final _amountInWordsController = TextEditingController();
@@ -37,10 +40,31 @@ class _AddRevenueDialogState extends State<AddRevenueDialog> {
   void initState() {
     super.initState();
     _selectedProjectId = widget.projectId;
+
+    if (widget.initialEntry != null) {
+      final entry = widget.initialEntry!;
+      _amountController.text = entry.amount.toString();
+      _descriptionController.text = entry.description;
+      _receiverController.text = entry.receiverName ?? '';
+      _receiptNoController.text = entry.receiptNumber ?? '';
+      _ourBankController.text = entry.bank ?? '';
+      _bankController.text = entry.bankName ?? '';
+      _branchController.text = entry.branchName ?? '';
+      _amountInWordsController.text = entry.amountInWords ?? '';
+      _chequeController.text = entry.paymentMode == PaymentMode.cash
+          ? ''
+          : (entry.referenceData ?? '');
+      _paymentMode = entry.paymentMode;
+      _receiptDate = entry.date;
+      _paymentDate = entry.paymentDate;
+      _selectedProjectId = entry.projectId.isEmpty ? null : entry.projectId;
+    } else {
+      // Auto-generate a basic receipt number if possible
+      _receiptNoController.text =
+          '${DateFormat('yyyyMMdd').format(DateTime.now())}-${DateTime.now().millisecond}';
+    }
+
     _amountController.addListener(_updateAmountInWords);
-    // Auto-generate a basic receipt number if possible
-    _receiptNoController.text =
-        '${DateFormat('yyyyMMdd').format(DateTime.now())}-${DateTime.now().millisecond}';
   }
 
   void _updateAmountInWords() {
@@ -65,7 +89,8 @@ class _AddRevenueDialogState extends State<AddRevenueDialog> {
 
     setState(() => _isLoading = true);
     try {
-      final newRevenue = ConstructionEntry(
+      final updatedEntry = ConstructionEntry(
+        id: widget.initialEntry?.id ?? const Uuid().v4(),
         projectId: _selectedProjectId ?? '',
         transactionType: TransactionType.credit,
         categoryId: EntryCategory.paymentReceived,
@@ -80,15 +105,18 @@ class _AddRevenueDialogState extends State<AddRevenueDialog> {
         receiverName: _receiverController.text.trim(),
         receiptNumber: _receiptNoController.text.trim(),
         amountInWords: _amountInWordsController.text.trim(),
+        bank: _ourBankController.text.trim(),
         bankName: _bankController.text.trim(),
         branchName: _branchController.text.trim(),
         paymentDate: _paymentDate ?? _receiptDate,
       );
 
-      await Provider.of<BudgetProvider>(
-        context,
-        listen: false,
-      ).addEntry(newRevenue);
+      final bp = Provider.of<BudgetProvider>(context, listen: false);
+      if (widget.initialEntry != null) {
+        await bp.updateEntry(updatedEntry);
+      } else {
+        await bp.addEntry(updatedEntry);
+      }
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
@@ -127,6 +155,7 @@ class _AddRevenueDialogState extends State<AddRevenueDialog> {
     _descriptionController.dispose();
     _receiverController.dispose();
     _receiptNoController.dispose();
+    _ourBankController.dispose();
     _bankController.dispose();
     _branchController.dispose();
     _amountInWordsController.dispose();
@@ -154,7 +183,9 @@ class _AddRevenueDialogState extends State<AddRevenueDialog> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Issue Receipt',
+                      widget.initialEntry == null
+                          ? 'Issue Receipt'
+                          : 'Update Receipt',
                       style: Theme.of(context).textTheme.headlineSmall
                           ?.copyWith(
                             color: Theme.of(context).colorScheme.primary,
@@ -326,9 +357,20 @@ class _AddRevenueDialogState extends State<AddRevenueDialog> {
                     children: [
                       Expanded(
                         child: TextFormField(
+                          controller: _ourBankController,
+                          decoration: const InputDecoration(
+                            labelText: 'Bank (Deposited)',
+                            prefixIcon: Icon(Icons.account_balance),
+                          ),
+                          textCapitalization: TextCapitalization.words,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: TextFormField(
                           controller: _bankController,
                           decoration: const InputDecoration(
-                            labelText: 'Drawn On (Bank)',
+                            labelText: 'Drawn On',
                           ),
                           textCapitalization: TextCapitalization.words,
                         ),
@@ -377,12 +419,26 @@ class _AddRevenueDialogState extends State<AddRevenueDialog> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text(
-                          'Save & Issue Receipt',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              widget.initialEntry == null
+                                  ? Icons.receipt_long
+                                  : Icons.edit_note,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              widget.initialEntry == null
+                                  ? 'Save & Issue Receipt'
+                                  : 'Update Receipt',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
                 ),
                 const SizedBox(height: 12),

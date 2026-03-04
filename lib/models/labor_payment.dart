@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:alray_app/utils/date_utils.dart' as alray_date;
 import 'package:uuid/uuid.dart';
 
 const uuid = Uuid();
@@ -31,15 +32,9 @@ class LaborPayment {
       projectId: json['projectId'] as String? ?? '',
       laborerName: json['laborerName'] as String? ?? 'Unnamed Laborer',
       amount: (json['amount'] as num? ?? 0.0).toDouble(),
-      date: json['date'] != null
-          ? (json['date'] as Timestamp).toDate()
-          : DateTime.now(),
-      periodStart: json['periodStart'] != null
-          ? (json['periodStart'] as Timestamp).toDate()
-          : DateTime.now(),
-      periodEnd: json['periodEnd'] != null
-          ? (json['periodEnd'] as Timestamp).toDate()
-          : DateTime.now(),
+      date: alray_date.DateUtils.parseRequired(json['date']),
+      periodStart: alray_date.DateUtils.parseRequired(json['periodStart']),
+      periodEnd: alray_date.DateUtils.parseRequired(json['periodEnd']),
       description: json['description'] as String? ?? '',
     );
   }

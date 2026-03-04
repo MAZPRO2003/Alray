@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:alray_app/utils/date_utils.dart' as alray_date;
 import 'package:uuid/uuid.dart';
 
 const uuid = Uuid();
@@ -25,9 +26,7 @@ class Milestone {
       projectId: json['projectId'] as String? ?? '',
       title: json['title'] as String? ?? 'Untitled Milestone',
       isCompleted: json['isCompleted'] as bool? ?? false,
-      dateCreated: json['dateCreated'] != null
-          ? (json['dateCreated'] as Timestamp).toDate()
-          : DateTime.now(),
+      dateCreated: alray_date.DateUtils.parseRequired(json['dateCreated']),
     );
   }
 

@@ -5,6 +5,10 @@ import 'package:alray_app/utils/currency_utils.dart';
 import 'package:intl/intl.dart';
 import 'package:alray_app/models/payable.dart';
 import 'package:alray_app/widgets/transaction_details_dialog.dart';
+import 'package:provider/provider.dart';
+import 'package:alray_app/providers/budget_provider.dart';
+import 'package:alray_app/widgets/add_payable_dialog.dart';
+import 'package:alray_app/widgets/add_expense_dialog.dart';
 
 class SpecializedTab extends StatefulWidget {
   final Project project;
@@ -140,37 +144,114 @@ class _SpecializedTabState extends State<SpecializedTab> {
                 ],
               ),
               isThreeLine: true,
-              trailing: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.end,
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    CurrencyUtils.formatInr(item.amount),
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: item.transactionType == TransactionType.credit
-                          ? Colors.blue
-                          : Colors.red,
-                    ),
-                  ),
-                  if (isPartiallyPaid)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text(
-                        'From Bill',
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        CurrencyUtils.formatInr(item.amount),
                         style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.orange,
                           fontWeight: FontWeight.bold,
+                          color: item.transactionType == TransactionType.credit
+                              ? Colors.blue
+                              : Colors.red,
                         ),
                       ),
+                      if (isPartiallyPaid)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'From Bill',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.orange,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  if (item.transactionType == TransactionType.expense)
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert, size: 20),
+                      onSelected: (val) async {
+                        if (val == 'edit') {
+                          showDialog(
+                            context: context,
+                            builder: (ctx) => AddExpenseDialog(
+                              projectId: widget.project.id,
+                              entry: item,
+                            ),
+                          );
+                        } else if (val == 'delete') {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Delete Expense?'),
+                              content: const Text(
+                                'Are you sure you want to delete this expense?',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, false),
+                                  child: const Text('Cancel'),
+                                ),
+                                ElevatedButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  child: const Text('Delete'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            if (context.mounted) {
+                              await Provider.of<BudgetProvider>(
+                                context,
+                                listen: false,
+                              ).removeEntry(item.id);
+                            }
+                          }
+                        }
+                      },
+                      itemBuilder: (ctx) => [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: ListTile(
+                            leading: Icon(Icons.edit, size: 20),
+                            title: Text('Edit'),
+                            dense: true,
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: ListTile(
+                            leading: Icon(
+                              Icons.delete,
+                              color: Colors.red,
+                              size: 20,
+                            ),
+                            title: Text(
+                              'Delete',
+                              style: TextStyle(color: Colors.red),
+                            ),
+                            dense: true,
+                          ),
+                        ),
+                      ],
                     ),
                 ],
               ),
@@ -218,20 +299,96 @@ class _SpecializedTabState extends State<SpecializedTab> {
               ],
             ),
             isThreeLine: true,
-            trailing: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  'Owed',
-                  style: TextStyle(fontSize: 10, color: Colors.grey),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const Text(
+                      'Owed',
+                      style: TextStyle(fontSize: 10, color: Colors.grey),
+                    ),
+                    Text(
+                      CurrencyUtils.formatInr(remaining),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange,
+                      ),
+                    ),
+                  ],
                 ),
-                Text(
-                  CurrencyUtils.formatInr(remaining),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange,
-                  ),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert, size: 20),
+                  onSelected: (val) async {
+                    if (val == 'edit') {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => AddPayableDialog(
+                          projectId: widget.project.id,
+                          payable: p,
+                        ),
+                      );
+                    } else if (val == 'delete') {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Delete Bill?'),
+                          content: const Text(
+                            'Are you sure you want to delete this bill?',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('Cancel'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () => Navigator.pop(ctx, true),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text('Delete'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        if (context.mounted) {
+                          await Provider.of<BudgetProvider>(
+                            context,
+                            listen: false,
+                          ).removePayable(widget.project.id, p.id);
+                        }
+                      }
+                    }
+                  },
+                  itemBuilder: (ctx) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: ListTile(
+                        leading: Icon(Icons.edit, size: 20),
+                        title: Text('Edit'),
+                        dense: true,
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: ListTile(
+                        leading: Icon(
+                          Icons.delete,
+                          color: Colors.red,
+                          size: 20,
+                        ),
+                        title: Text(
+                          'Delete',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                        dense: true,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -306,7 +463,9 @@ class _SummaryBanner extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         decoration: BoxDecoration(
-          color: isActive ? color.withValues(alpha: 0.12) : color.withValues(alpha: 0.04),
+          color: isActive
+              ? color.withValues(alpha: 0.12)
+              : color.withValues(alpha: 0.04),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isActive ? color : color.withValues(alpha: 0.1),

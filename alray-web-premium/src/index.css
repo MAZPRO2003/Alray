@@ -1,39 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* 
    Alray Associates - Premium Modern Styling
    Color Palette: Deep Navy, Rich Gold/Bronze, Crisp White, Soft Beige
 */
 
 :root {
-    /* Color Palette - Updated to Brand Signage */
-    --color-primary: #ea2127;
-    /* Vibrant Red (Logo/Main Accents) */
-    --color-primary-hover: #c41c21;
-    --color-secondary: #0a113d;
-    /* Deep Navy (Background Base) */
-    --color-secondary-light: #121c4e;
-    /* Navy (Rich Depth) */
-    --color-gold: #fcc201;
-    /* Golden Yellow (Logo/Details) */
-    --color-accent: #75cad4;
-    /* Teal/Aqua (Supporting Accents) */
+    /* Color Palette */
+    --color-primary: #e01f26;
+    /* Refined Red */
+    --color-primary-hover: #b91c22;
+    --color-secondary: #0d1b4b;
+    /* Deep Navy */
+    --color-secondary-light: #1a2d72;
+    --color-gold: #f5b800;
+    /* Refined Gold */
+    --color-accent: #4f8ef7;
+    /* Soft Blue Accent */
 
-    --color-dark: #020c1b;
-    --color-light: #f4f7f9;
+    --color-dark: #070e2b;
+    --color-light: #f3f5f9;
+    /* Softer warm-grey background */
     --color-white: #ffffff;
-    --color-text: #2d3436;
-    --color-text-light: #636e72;
-    --color-border: #e2e8f0;
-    --glass-bg: rgba(255, 255, 255, 0.1);
-    --glass-border: rgba(255, 255, 255, 0.2);
+    --color-text: #1a1f36;
+    /* Near-black for readability */
+    --color-text-light: #5a6080;
+    /* Muted slate */
+    --color-border: #e3e8f0;
+    /* Light cool border */
+    --glass-bg: rgba(255, 255, 255, 0.08);
+    --glass-border: rgba(255, 255, 255, 0.15);
 
     /* Premium Gradients */
-    --gradient-navy: linear-gradient(135deg, #0a113d 0%, #121c4e 100%);
-    --gradient-red: linear-gradient(135deg, #ea2127 0%, #c41c21 100%);
-    --gradient-gold: linear-gradient(135deg, #fcc201 0%, #d4a700 100%);
+    --gradient-navy: linear-gradient(135deg, #0d1b4b 0%, #1a2d72 100%);
+    --gradient-red: linear-gradient(135deg, #e01f26 0%, #b91c22 100%);
+    --gradient-gold: linear-gradient(135deg, #f5b800 0%, #c99500 100%);
 
     /* Typography */
     --font-heading: 'Playfair Display', serif;
-    --font-body: 'Outfit', sans-serif;
+    --font-body: 'Inter', sans-serif;
 
     /* Transitions */
     --transition-fast: 0.2s ease;
@@ -60,11 +67,12 @@ body,
 }
 
 body {
-    font-family: var(--font-body);
+    font-family: 'Inter', sans-serif;
     color: var(--color-text);
     background-color: var(--color-light);
-    line-height: 1.7;
+    line-height: 1.6;
     overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
 }
 
 h1,
@@ -73,11 +81,12 @@ h3,
 h4,
 h5,
 h6 {
-    font-family: var(--font-heading);
+    font-family: 'Inter', sans-serif;
     color: var(--color-secondary);
     line-height: 1.25;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
     font-weight: 700;
+    letter-spacing: -0.01em;
 }
 
 p {

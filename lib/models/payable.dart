@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:alray_app/utils/date_utils.dart' as alray_date;
 
 class Payable {
   final String id;
@@ -33,9 +34,7 @@ class Payable {
       totalAmount: (json['totalAmount'] ?? 0.0).toDouble(),
       description: json['description'] ?? '',
       categoryId: json['categoryId'] ?? 'miscExp',
-      dueDate: json['dueDate'] != null
-          ? (json['dueDate'] as Timestamp).toDate()
-          : DateTime.now(),
+      dueDate: alray_date.DateUtils.parseRequired(json['dueDate']),
       rate: (json['rate'] ?? (json['totalAmount'] ?? 0.0)).toDouble(),
       quantity: (json['quantity'] ?? 1.0).toDouble(),
       isPaid: json['isPaid'] ?? false,

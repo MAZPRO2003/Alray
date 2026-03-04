@@ -7,8 +7,9 @@ import 'package:alray_app/utils/currency_utils.dart';
 
 class AddExpenseDialog extends StatefulWidget {
   final String projectId;
+  final ConstructionEntry? entry;
 
-  const AddExpenseDialog({super.key, required this.projectId});
+  const AddExpenseDialog({super.key, required this.projectId, this.entry});
 
   @override
   State<AddExpenseDialog> createState() => _AddExpenseDialogState();
@@ -26,6 +27,28 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
   String _selectedCategory = EntryCategory.cementM;
   PaymentMode _selectedPaymentMethod = PaymentMode.cash;
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.entry != null) {
+      _descController.text = widget.entry!.description;
+      _rateController.text = widget.entry!.rate.toString();
+      _qtyController.text = widget.entry!.quantity.toString();
+      _selectedDate = widget.entry!.date;
+      _selectedCategory = widget.entry!.categoryId;
+      _selectedPaymentMethod = widget.entry!.paymentMode;
+      _chequeDetailsController.text = widget.entry!.referenceData ?? '';
+
+      // Handle custom material name from description if needed
+      if (_selectedCategory == EntryCategory.otherMiscMaterials &&
+          widget.entry!.description.contains(': ')) {
+        final split = widget.entry!.description.split(': ');
+        _customMaterialController.text = split[0];
+        _descController.text = split.skip(1).join(': ');
+      }
+    }
+  }
 
   void _presentDatePicker() async {
     final now = DateTime.now();
@@ -81,7 +104,8 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
 
     setState(() => _isLoading = true);
     try {
-      final newEntry = ConstructionEntry(
+      final entry = ConstructionEntry(
+        id: widget.entry?.id,
         projectId: widget.projectId,
         description: finalDesc,
         transactionType: TransactionType.expense,
@@ -95,10 +119,17 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
             : null,
       );
 
-      await Provider.of<BudgetProvider>(
-        context,
-        listen: false,
-      ).addEntry(newEntry);
+      if (widget.entry != null) {
+        await Provider.of<BudgetProvider>(
+          context,
+          listen: false,
+        ).updateEntry(entry);
+      } else {
+        await Provider.of<BudgetProvider>(
+          context,
+          listen: false,
+        ).addEntry(entry);
+      }
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
@@ -143,7 +174,7 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  'Add New Expense',
+                  widget.entry != null ? 'Edit Expense' : 'Add New Expense',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Theme.of(context).colorScheme.primary,
@@ -384,7 +415,11 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text('Save Expense'),
+                          : Text(
+                              widget.entry != null
+                                  ? 'Update Expense'
+                                  : 'Save Expense',
+                            ),
                     ),
                   ],
                 ),

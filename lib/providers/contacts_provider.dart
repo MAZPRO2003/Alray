@@ -83,6 +83,26 @@ class ContactsProvider with ChangeNotifier {
     if (_teamSubscription == null) startListening();
   }
 
+  Future<void> updateContact(Contact contact) async {
+    try {
+      final contactIndex = _contacts.indexWhere((c) => c.id == contact.id);
+      if (contactIndex >= 0) {
+        // Optimistic UI update
+        _contacts[contactIndex] = contact;
+        notifyListeners();
+
+        // Network Background Sync
+        await _firestore
+            .collection('contacts')
+            .doc(contact.id)
+            .update(contact.toFirestore());
+      }
+    } catch (e) {
+      debugPrint('Error updating contact: $e');
+      fetchContacts();
+    }
+  }
+
   Future<void> addContact(Contact contact) async {
     if (_userId == null) return;
     try {

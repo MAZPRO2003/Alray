@@ -1,3 +1,4 @@
+import 'package:alray_app/utils/date_utils.dart' as alray_date;
 import 'package:uuid/uuid.dart';
 
 const uuid = Uuid();
@@ -128,6 +129,7 @@ class ConstructionEntry {
   final String? receiverName;
   final String? amountInWords;
   final DateTime? paymentDate;
+  final String? bank;
   final String? bankName;
   final String? branchName;
 
@@ -149,6 +151,7 @@ class ConstructionEntry {
     this.receiverName,
     this.amountInWords,
     this.paymentDate,
+    this.bank,
     this.bankName,
     this.branchName,
   }) : id = id ?? uuid.v4();
@@ -239,9 +242,7 @@ class ConstructionEntry {
       id: documentId,
       projectId: json['projectId'] as String? ?? '',
       contactId: json['contactId'] as String?,
-      date: json['date'] != null
-          ? DateTime.parse(json['date'] as String)
-          : DateTime.now(),
+      date: alray_date.DateUtils.parseRequired(json['date']),
       description: json['description'] as String? ?? 'No Description',
       transactionType: type,
       categoryId: categoryId,
@@ -254,9 +255,8 @@ class ConstructionEntry {
       receiptNumber: json['receiptNumber'] as String?,
       receiverName: json['receiverName'] as String?,
       amountInWords: json['amountInWords'] as String?,
-      paymentDate: json['paymentDate'] != null
-          ? DateTime.parse(json['paymentDate'] as String)
-          : null,
+      paymentDate: alray_date.DateUtils.parse(json['paymentDate']),
+      bank: json['bank'] as String?,
       bankName: json['bankName'] as String?,
       branchName: json['branchName'] as String?,
     );
@@ -281,6 +281,7 @@ class ConstructionEntry {
       'receiverName': receiverName,
       'amountInWords': amountInWords,
       'paymentDate': paymentDate?.toIso8601String(),
+      'bank': bank,
       'bankName': bankName,
       'branchName': branchName,
     };

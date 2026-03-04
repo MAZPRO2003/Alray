@@ -124,6 +124,38 @@ class ReceiptGenerator {
                   _lineItem('the sum of Rupees', entry.amountInWords ?? '-'),
                   pw.SizedBox(height: 10),
 
+                  if (entry.bank != null && entry.bank!.isNotEmpty)
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.only(bottom: 10),
+                      child: pw.Row(
+                        children: [
+                          pw.Text(
+                            'Bank: ',
+                            style: pw.TextStyle(
+                              fontWeight: pw.FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                          pw.Expanded(
+                            child: pw.Container(
+                              padding: const pw.EdgeInsets.only(bottom: 2),
+                              decoration: const pw.BoxDecoration(
+                                border: pw.Border(
+                                  bottom: pw.BorderSide(
+                                    style: pw.BorderStyle.dotted,
+                                  ),
+                                ),
+                              ),
+                              child: pw.Text(
+                                entry.bank!,
+                                textAlign: pw.TextAlign.center,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
                   pw.Row(
                     children: [
                       pw.Text(
@@ -239,7 +271,7 @@ class ReceiptGenerator {
                           border: pw.Border.all(color: PdfColors.black),
                         ),
                         child: pw.Text(
-                          'Rs: ${NumberFormat("#,##,###.00", "en_IN").format(entry.amount)}/-',
+                          '₹${NumberFormat("#,##,###.00", "en_IN").format(entry.amount)}/-',
                           style: pw.TextStyle(
                             fontSize: 18,
                             fontWeight: pw.FontWeight.bold,

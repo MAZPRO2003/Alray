@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:alray_app/models/project.dart';
+import 'package:alray_app/providers/budget_provider.dart';
 import 'package:alray_app/models/construction_entry.dart';
 import 'package:alray_app/utils/currency_utils.dart';
 import 'package:alray_app/utils/receipt_generator.dart';
@@ -206,14 +208,32 @@ class CustomerTab extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton.icon(
+                    onPressed: () => _showAddPaymentDialog(context, entry),
+                    icon: const Icon(Icons.edit_outlined, size: 18),
+                    label: const Text('Edit'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.blue.shade700,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    onPressed: () => _handleDelete(context, entry),
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    label: const Text('Delete'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.red.shade700,
+                    ),
+                  ),
+                  const Spacer(),
+                  TextButton.icon(
                     onPressed: () => ReceiptGenerator.generateAndShare(
                       context: context,
                       entry: entry,
                     ),
                     icon: const Icon(Icons.download, size: 18),
-                    label: const Text('Issue Receipt'),
+                    label: const Text('Receipt'),
                     style: TextButton.styleFrom(
-                      foregroundColor: Colors.blue.shade700,
+                      foregroundColor: Colors.teal.shade700,
                     ),
                   ),
                 ],
@@ -225,10 +245,41 @@ class CustomerTab extends StatelessWidget {
     );
   }
 
-  void _showAddPaymentDialog(BuildContext context) {
+  void _showAddPaymentDialog(BuildContext context, [ConstructionEntry? entry]) {
     showDialog(
       context: context,
-      builder: (ctx) => AddRevenueDialog(projectId: project.id),
+      builder: (ctx) =>
+          AddRevenueDialog(projectId: project.id, initialEntry: entry),
     );
+  }
+
+  void _handleDelete(BuildContext context, ConstructionEntry entry) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Payment?'),
+        content: const Text(
+          'Are you sure you want to delete this payment record?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      Provider.of<BudgetProvider>(context, listen: false).removeEntry(entry.id);
+    }
   }
 }

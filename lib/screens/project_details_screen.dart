@@ -40,10 +40,11 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     );
   }
 
-  void _showAddRevenueDialog(BuildContext context) {
+  void _showAddRevenueDialog(BuildContext context, [ConstructionEntry? entry]) {
     showDialog(
       context: context,
-      builder: (ctx) => AddRevenueDialog(projectId: projectId),
+      builder: (ctx) =>
+          AddRevenueDialog(projectId: projectId, initialEntry: entry),
     );
   }
 
@@ -123,10 +124,11 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     );
   }
 
-  void _showAddPayableDialog(BuildContext context) {
+  void _showAddPayableDialog(BuildContext context, [Payable? existingPayable]) {
     showDialog(
       context: context,
-      builder: (ctx) => AddPayableDialog(projectId: projectId),
+      builder: (ctx) =>
+          AddPayableDialog(projectId: projectId, payable: existingPayable),
     );
   }
 
@@ -155,7 +157,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
   Icon _getCategoryIcon(dynamic item) {
     if (item is ConstructionEntry) {
       if (item.transactionType == TransactionType.credit) {
-        return const Icon(Icons.handshake_outlined, color: Colors.blue);
+        return const Icon(Icons.receipt_long, color: Colors.teal);
       }
       if (item.categoryId.endsWith('-M') ||
           item.categoryId == EntryCategory.otherMiscMaterials) {
@@ -274,17 +276,40 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
         ),
         floatingActionButton: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
+            // Issues
+            FloatingActionButton.small(
+              heroTag: 'add_issue_fab_$projectId',
+              onPressed: () => _showAddSnagItemDialog(context),
+              backgroundColor: Colors.orange.shade100,
+              tooltip: 'Record Issue',
+              child: const Icon(Icons.bug_report, color: Colors.orange),
+            ),
+            const SizedBox(height: 8),
+            // Pending Bill
+            FloatingActionButton.small(
+              heroTag: 'add_payable_fab_$projectId',
+              onPressed: () => _showAddPayableDialog(context),
+              backgroundColor: Colors.purple.shade100,
+              tooltip: 'Record Pending Bill',
+              child: const Icon(Icons.history_outlined, color: Colors.purple),
+            ),
+            const SizedBox(height: 8),
+            // Revenue
             FloatingActionButton.small(
               heroTag: 'add_revenue_fab_$projectId',
               onPressed: () => _showAddRevenueDialog(context),
               backgroundColor: Colors.teal.shade100,
+              tooltip: 'Record Payment (Income)',
               child: const Icon(Icons.attach_money, color: Colors.teal),
             ),
             const SizedBox(height: 8),
+            // Expense
             FloatingActionButton(
               heroTag: 'add_expense_fab_$projectId',
               onPressed: () => _showAddExpenseDialog(context),
+              tooltip: 'Record Expense',
               child: const Icon(Icons.add_shopping_cart),
             ),
           ],
@@ -888,12 +913,54 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                                     ),
                                   IconButton(
                                     icon: const Icon(
+                                      Icons.edit_outlined,
+                                      size: 20,
+                                      color: Colors.blue,
+                                    ),
+                                    tooltip: 'Edit Bill',
+                                    onPressed: () =>
+                                        _showAddPayableDialog(context, p),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
                                       Icons.delete_outline,
                                       size: 20,
-                                      color: Colors.grey,
+                                      color: Colors.redAccent,
                                     ),
-                                    onPressed: () => budgetProvider
-                                        .removePayable(projectId, p.id),
+                                    tooltip: 'Delete Bill',
+                                    onPressed: () async {
+                                      final confirm = await showDialog<bool>(
+                                        context: context,
+                                        builder: (ctx) => AlertDialog(
+                                          title: const Text('Delete Bill?'),
+                                          content: const Text(
+                                            'Are you sure you want to delete this bill?',
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(ctx, false),
+                                              child: const Text('Cancel'),
+                                            ),
+                                            ElevatedButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(ctx, true),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.red,
+                                                foregroundColor: Colors.white,
+                                              ),
+                                              child: const Text('Delete'),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                      if (confirm == true) {
+                                        budgetProvider.removePayable(
+                                          projectId,
+                                          p.id,
+                                        );
+                                      }
+                                    },
                                   ),
                                 ],
                               ),

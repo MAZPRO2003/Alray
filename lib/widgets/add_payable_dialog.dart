@@ -7,8 +7,9 @@ import 'package:alray_app/models/construction_entry.dart';
 
 class AddPayableDialog extends StatefulWidget {
   final String projectId;
+  final Payable? payable;
 
-  const AddPayableDialog({super.key, required this.projectId});
+  const AddPayableDialog({super.key, required this.projectId, this.payable});
 
   @override
   State<AddPayableDialog> createState() => _AddPayableDialogState();
@@ -24,6 +25,27 @@ class _AddPayableDialogState extends State<AddPayableDialog> {
   DateTime _dueDate = DateTime.now().add(const Duration(days: 7));
   String _selectedCategory = EntryCategory.cementM;
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.payable != null) {
+      _vendorController.text = widget.payable!.vendorName;
+      _descController.text = widget.payable!.description;
+      _qtyController.text = widget.payable!.quantity.toString();
+      _rateController.text = widget.payable!.rate.toString();
+      _dueDate = widget.payable!.dueDate;
+      _selectedCategory = widget.payable!.categoryId;
+
+      // Handle custom material name from description if needed
+      if (_selectedCategory == EntryCategory.otherMiscMaterials &&
+          widget.payable!.description.contains(': ')) {
+        final split = widget.payable!.description.split(': ');
+        _customMaterialController.text = split[0];
+        _descController.text = split.skip(1).join(': ');
+      }
+    }
+  }
 
   void _presentDatePicker() async {
     final pickedDate = await showDatePicker(
@@ -53,7 +75,7 @@ class _AddPayableDialogState extends State<AddPayableDialog> {
 
     try {
       final payable = Payable(
-        id: '',
+        id: widget.payable?.id ?? '',
         projectId: widget.projectId,
         vendorName: _vendorController.text.trim(),
         totalAmount: amount,
@@ -68,10 +90,17 @@ class _AddPayableDialogState extends State<AddPayableDialog> {
         dueDate: _dueDate,
       );
 
-      await Provider.of<BudgetProvider>(
-        context,
-        listen: false,
-      ).addPayable(payable);
+      if (widget.payable != null) {
+        await Provider.of<BudgetProvider>(
+          context,
+          listen: false,
+        ).updatePayable(payable);
+      } else {
+        await Provider.of<BudgetProvider>(
+          context,
+          listen: false,
+        ).addPayable(payable);
+      }
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
@@ -100,7 +129,7 @@ class _AddPayableDialogState extends State<AddPayableDialog> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  'Add New Bill',
+                  widget.payable != null ? 'Edit Bill' : 'Add New Bill',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     color: Theme.of(context).colorScheme.primary,
                     fontWeight: FontWeight.bold,
@@ -288,7 +317,7 @@ class _AddPayableDialogState extends State<AddPayableDialog> {
                       onPressed: _isLoading ? null : _submit,
                       child: _isLoading
                           ? const CircularProgressIndicator()
-                          : const Text('Save'),
+                          : Text(widget.payable != null ? 'Update' : 'Save'),
                     ),
                   ],
                 ),

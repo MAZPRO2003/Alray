@@ -294,18 +294,53 @@ class _ContactsScreenState extends State<ContactsScreen> {
                             color: Theme.of(context).colorScheme.primary,
                           ),
                         ),
-                        if (contact.dailyWage > 0)
-                          Text(
-                            '₹${contact.dailyWage.toInt()} / day',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
                       ],
                     ),
                   ),
-                  const Icon(Icons.chevron_right, color: Colors.grey),
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, color: Colors.grey),
+                    onSelected: (value) {
+                      if (value == 'edit') {
+                        showDialog(
+                          context: context,
+                          builder: (context) =>
+                              AddContactDialog(contact: contact),
+                        );
+                      } else if (value == 'delete') {
+                        _confirmDelete(
+                          context,
+                          Provider.of<ContactsProvider>(context, listen: false),
+                          contact,
+                        );
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit_note, size: 20),
+                            SizedBox(width: 8),
+                            Text('Edit'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.delete_outline,
+                              size: 20,
+                              color: Colors.red,
+                            ),
+                            SizedBox(width: 8),
+                            Text('Delete', style: TextStyle(color: Colors.red)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -314,5 +349,32 @@ class _ContactsScreenState extends State<ContactsScreen> {
         .animate()
         .fade(duration: 300.ms)
         .slideX(begin: 0.05, end: 0, duration: 300.ms);
+  }
+
+  void _confirmDelete(
+    BuildContext context,
+    ContactsProvider provider,
+    Contact contact,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Contact?'),
+        content: Text('Are you sure you want to delete ${contact.name}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              provider.deleteContact(contact.id);
+              Navigator.pop(ctx);
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
   }
 }

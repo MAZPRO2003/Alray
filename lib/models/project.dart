@@ -1,3 +1,4 @@
+import 'package:alray_app/utils/date_utils.dart' as alray_date;
 import 'package:uuid/uuid.dart';
 import 'package:alray_app/models/construction_entry.dart';
 import 'package:alray_app/models/milestone.dart';
@@ -73,12 +74,8 @@ class Project {
       longitude: json['longitude'] != null
           ? (json['longitude'] as num).toDouble()
           : null,
-      startDate: json['startDate'] != null
-          ? DateTime.parse(json['startDate'] as String)
-          : null,
-      endDate: json['endDate'] != null
-          ? DateTime.parse(json['endDate'] as String)
-          : null,
+      startDate: alray_date.DateUtils.parse(json['startDate']),
+      endDate: alray_date.DateUtils.parse(json['endDate']),
       customerPhone: json['customerPhone'] as String?,
     );
   }

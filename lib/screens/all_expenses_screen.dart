@@ -6,6 +6,7 @@ import 'package:alray_app/providers/budget_provider.dart';
 import 'package:alray_app/models/construction_entry.dart';
 import 'package:alray_app/models/project.dart';
 import 'package:alray_app/utils/currency_utils.dart';
+import 'package:alray_app/widgets/add_expense_dialog.dart';
 import 'package:alray_app/widgets/transaction_details_dialog.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
@@ -490,10 +491,14 @@ class _AllExpensesScreenState extends State<AllExpensesScreen> {
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: statusColor.withValues(alpha: 0.12),
+                                        color: statusColor.withValues(
+                                          alpha: 0.12,
+                                        ),
                                         borderRadius: BorderRadius.circular(12),
                                         border: Border.all(
-                                          color: statusColor.withValues(alpha: 0.4),
+                                          color: statusColor.withValues(
+                                            alpha: 0.4,
+                                          ),
                                         ),
                                       ),
                                       child: Text(
@@ -515,13 +520,123 @@ class _AllExpensesScreenState extends State<AllExpensesScreen> {
                                       : '${item.data.description}\n${item.projectName}  •  ${DateFormat.yMMMd().format(item.date)}',
                                 ),
                                 isThreeLine: true,
-                                trailing: Text(
-                                  CurrencyUtils.formatInr(item.data.amount),
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: isRevenue ? Colors.blue : Colors.red,
-                                    fontSize: 15,
-                                  ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                          CurrencyUtils.formatInr(
+                                            item.data.amount,
+                                          ),
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: isRevenue
+                                                ? Colors.blue
+                                                : Colors.red,
+                                            fontSize: 15,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    if (!isRevenue)
+                                      PopupMenuButton<String>(
+                                        icon: const Icon(
+                                          Icons.more_vert,
+                                          size: 20,
+                                        ),
+                                        onSelected: (val) async {
+                                          if (val == 'edit') {
+                                            showDialog(
+                                              context: context,
+                                              builder: (ctx) =>
+                                                  AddExpenseDialog(
+                                                    projectId:
+                                                        item.data.projectId,
+                                                    entry: item.data,
+                                                  ),
+                                            );
+                                          } else if (val == 'delete') {
+                                            final confirm = await showDialog<bool>(
+                                              context: context,
+                                              builder: (ctx) => AlertDialog(
+                                                title: const Text(
+                                                  'Delete Expense?',
+                                                ),
+                                                content: const Text(
+                                                  'Are you sure you want to delete this expense?',
+                                                ),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(
+                                                          ctx,
+                                                          false,
+                                                        ),
+                                                    child: const Text('Cancel'),
+                                                  ),
+                                                  ElevatedButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(
+                                                          ctx,
+                                                          true,
+                                                        ),
+                                                    style:
+                                                        ElevatedButton.styleFrom(
+                                                          backgroundColor:
+                                                              Colors.red,
+                                                          foregroundColor:
+                                                              Colors.white,
+                                                        ),
+                                                    child: const Text('Delete'),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                            if (confirm == true) {
+                                              await Provider.of<BudgetProvider>(
+                                                context,
+                                                listen: false,
+                                              ).removeEntry(item.data.id);
+                                            }
+                                          }
+                                        },
+                                        itemBuilder: (ctx) => [
+                                          const PopupMenuItem(
+                                            value: 'edit',
+                                            child: ListTile(
+                                              leading: Icon(
+                                                Icons.edit,
+                                                size: 20,
+                                              ),
+                                              title: Text('Edit'),
+                                              dense: true,
+                                            ),
+                                          ),
+                                          const PopupMenuItem(
+                                            value: 'delete',
+                                            child: ListTile(
+                                              leading: Icon(
+                                                Icons.delete,
+                                                color: Colors.red,
+                                                size: 20,
+                                              ),
+                                              title: Text(
+                                                'Delete',
+                                                style: TextStyle(
+                                                  color: Colors.red,
+                                                ),
+                                              ),
+                                              dense: true,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                  ],
                                 ),
                               ),
                             ),

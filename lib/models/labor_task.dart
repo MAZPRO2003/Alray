@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:alray_app/utils/date_utils.dart' as alray_date;
 import 'package:uuid/uuid.dart';
 
 const uuid = Uuid();
@@ -39,14 +40,10 @@ class LaborTask {
       role: json['role'] as String? ?? '',
       completionPercentage: (json['completionPercentage'] as num? ?? 0.0)
           .toDouble(),
-      startDate: json['startDate'] != null
-          ? (json['startDate'] as Timestamp).toDate()
-          : (json['date'] != null
-                ? (json['date'] as Timestamp).toDate()
-                : DateTime.now()),
-      endDate: json['endDate'] != null
-          ? (json['endDate'] as Timestamp).toDate()
-          : null,
+      startDate: alray_date.DateUtils.parseRequired(
+        json['startDate'] ?? json['date'],
+      ),
+      endDate: alray_date.DateUtils.parse(json['endDate']),
     );
   }
 

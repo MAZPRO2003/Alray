@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:alray_app/providers/contacts_provider.dart';
 import 'package:alray_app/models/contact.dart';
+import 'package:alray_app/widgets/add_contact_dialog.dart';
 import 'package:alray_app/widgets/add_contact_note_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -54,6 +55,13 @@ class ContactDetailsScreen extends StatelessWidget {
           appBar: AppBar(
             title: Text(contact.name),
             actions: [
+              IconButton(
+                icon: const Icon(Icons.edit_note),
+                onPressed: () => showDialog(
+                  context: context,
+                  builder: (context) => AddContactDialog(contact: contact),
+                ),
+              ),
               IconButton(
                 icon: const Icon(Icons.call_outlined),
                 onPressed: () => _makePhoneCall(contact.phoneNumber),
@@ -137,16 +145,6 @@ class ContactDetailsScreen extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              if (contact.dailyWage > 0) ...[
-                                const SizedBox(height: 8),
-                                Text(
-                                  '₹${contact.dailyWage.toInt()} / day',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 14,
-                                    color: Colors.grey.shade700,
-                                  ),
-                                ),
-                              ],
                               const SizedBox(height: 8),
                               Text(
                                 contact.phoneNumber,

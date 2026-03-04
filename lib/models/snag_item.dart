@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:alray_app/utils/date_utils.dart' as alray_date;
 
 enum SnagStatus { pending, inProgress, resolved }
 
@@ -36,12 +37,8 @@ class SnagItem {
         (e) => e.toString() == 'SnagPriority.${json['priority']}',
         orElse: () => SnagPriority.medium,
       ),
-      createdAt: json['createdAt'] != null
-          ? (json['createdAt'] as Timestamp).toDate()
-          : DateTime.now(),
-      resolvedAt: json['resolvedAt'] != null
-          ? (json['resolvedAt'] as Timestamp).toDate()
-          : null,
+      createdAt: alray_date.DateUtils.parseRequired(json['createdAt']),
+      resolvedAt: alray_date.DateUtils.parse(json['resolvedAt']),
     );
   }
 

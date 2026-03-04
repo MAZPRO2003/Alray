@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:alray_app/utils/date_utils.dart' as alray_date;
 
 /// A single timestamped note entry attached to a contact.
 class ContactNote {
@@ -10,7 +11,7 @@ class ContactNote {
   factory ContactNote.fromMap(Map<String, dynamic> map) {
     return ContactNote(
       text: map['text'] as String? ?? '',
-      timestamp: (map['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      timestamp: alray_date.DateUtils.parseRequired(map['timestamp']),
     );
   }
 
@@ -63,12 +64,12 @@ class Contact {
       phoneNumber: data?['phoneNumber'] as String? ?? '',
       notes: data?['notes'] as String?,
       callCount: data?['callCount'] as int? ?? 0,
-      createdAt:
-          (data?['createdAt'] as Timestamp? ?? data?['timestamp'] as Timestamp?)
-              ?.toDate(),
+      createdAt: alray_date.DateUtils.parse(
+        data?['createdAt'] ?? data?['timestamp'],
+      ),
       callHistory:
           (data?['callHistory'] as List<dynamic>?)
-              ?.map((ts) => (ts as Timestamp).toDate())
+              ?.map((ts) => alray_date.DateUtils.parseRequired(ts))
               .toList() ??
           [],
       callNotes: data?['callNotes'] as String?,

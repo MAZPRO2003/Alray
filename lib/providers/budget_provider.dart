@@ -411,42 +411,57 @@ class BudgetProvider with ChangeNotifier {
 
   Future<void> addEntry(ConstructionEntry entry) async {
     if (_userId == null) return;
-    final data = entry.toJson();
+    final Map<String, dynamic> data = entry.toJson();
     data['userId'] = _userId;
 
-    // Use unified 'entries' collection for new data
-    final docRef = await _firestore.collection('entries').add(data);
-
-    final addedEntry = ConstructionEntry(
-      id: docRef.id,
-      projectId: entry.projectId,
-      date: entry.date,
-      description: entry.description,
-      transactionType: entry.transactionType,
-      categoryId: entry.categoryId,
-      quantity: entry.quantity,
-      rate: entry.rate,
-      paymentMode: entry.paymentMode,
-      referenceData: entry.referenceData,
-      attachmentUrl: entry.attachmentUrl,
-      payableId: entry.payableId,
-      receiptNumber: entry.receiptNumber,
-      receiverName: entry.receiverName,
-      amountInWords: entry.amountInWords,
-      paymentDate: entry.paymentDate,
-      bankName: entry.bankName,
-      branchName: entry.branchName,
-    );
-
-    if (entry.projectId.isEmpty) {
-      _globalEntries.add(addedEntry);
-    } else {
-      final projectIndex = _projects.indexWhere((p) => p.id == entry.projectId);
-      if (projectIndex >= 0) {
-        _projects[projectIndex].entries.add(addedEntry);
+    try {
+      await _firestore.collection('entries').doc(entry.id).set(data);
+      if (entry.projectId.isEmpty) {
+        _globalEntries.add(entry);
+      } else {
+        final projectIndex = _projects.indexWhere(
+          (p) => p.id == entry.projectId,
+        );
+        if (projectIndex >= 0) {
+          _projects[projectIndex].entries.add(entry);
+        }
       }
+      _globalEntries.sort((a, b) => b.date.compareTo(a.date));
+      notifyListeners();
+    } catch (e, st) {
+      debugPrint('addEntry error: $e\n$st');
+      await fetchAndSetProjects();
     }
-    notifyListeners();
+  }
+
+  Future<void> updateEntry(ConstructionEntry entry) async {
+    if (_userId == null) return;
+    final Map<String, dynamic> data = entry.toJson();
+    data['userId'] = _userId;
+
+    try {
+      await _firestore.collection('entries').doc(entry.id).update(data);
+
+      // Update local state
+      int globalIdx = _globalEntries.indexWhere((e) => e.id == entry.id);
+      if (globalIdx >= 0) {
+        _globalEntries[globalIdx] = entry;
+      }
+
+      for (var p in _projects) {
+        int idx = p.entries.indexWhere((e) => e.id == entry.id);
+        if (idx >= 0) {
+          p.entries[idx] = entry;
+          break;
+        }
+      }
+
+      _globalEntries.sort((a, b) => b.date.compareTo(a.date));
+      notifyListeners();
+    } catch (e, st) {
+      debugPrint('updateEntry error: $e\n$st');
+      await fetchAndSetProjects();
+    }
   }
 
   Future<void> removeEntry(String entryId) async {

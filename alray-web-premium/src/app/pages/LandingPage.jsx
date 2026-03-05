@@ -472,7 +472,7 @@ function App() {
                 title: 'Alray Heritage Garden',
                 desc: 'A sophisticated residential building featuring a harmonious blend of brown and white tones, designed for comfortable family living.',
                 img: '/images/alray_heritage_garden.jpg',
-                features: ['Stilt + 3 Floors', 'Elegant Balconies', 'Modern Facade', 'Quality Construction']
+                features: ['Stilt + 2 Floors', 'Elegant Balconies', 'Modern Facade', 'Quality Construction']
               },
               {
                 title: 'Alray Onyx Heights',
@@ -488,9 +488,9 @@ function App() {
               },
               {
                 title: 'Alray Modern Residence',
-                desc: 'A contemporary 3-story residential building featuring modern architectural aesthetics and premium finishes.',
+                desc: 'A contemporary 2-story residential building featuring modern architectural aesthetics and premium finishes.',
                 img: '/images/alray_modern_residence.jpg',
-                features: ['Modern Facade', '3-Story Design', 'Premium Materials', 'Optimized Space']
+                features: ['Modern Facade', '2-Story Design', 'Premium Materials', 'Optimized Space']
               },
               {
                 title: 'Alray Commercial Hub',

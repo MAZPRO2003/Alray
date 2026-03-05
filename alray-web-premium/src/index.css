@@ -608,6 +608,7 @@ img {
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
     transition: var(--transition-medium);
     border-bottom: 3px solid transparent;
+    text-align: center;
 }
 
 .service-card:hover {
@@ -619,6 +620,8 @@ img {
 .service-icon {
     font-size: 3rem;
     margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: center;
 }
 
 /* Projects */

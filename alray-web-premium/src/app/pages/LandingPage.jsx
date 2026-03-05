@@ -407,7 +407,7 @@ function App() {
                 transition={{ delay: idx * 0.2 }}
               >
                 <div className="step-number">{idx + 1}</div>
-                <div className="text-primary mb-15" style={{ color: 'var(--color-primary)' }}>{step.icon}</div>
+                <div className="flex justify-center text-primary mb-4" style={{ color: 'var(--color-primary)' }}>{step.icon}</div>
                 <h4>{step.title}</h4>
                 <p>{step.text}</p>
               </motion.div>

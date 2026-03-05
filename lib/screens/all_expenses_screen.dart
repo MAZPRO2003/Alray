@@ -598,10 +598,12 @@ class _AllExpensesScreenState extends State<AllExpensesScreen> {
                                               ),
                                             );
                                             if (confirm == true) {
-                                              await Provider.of<BudgetProvider>(
-                                                context,
-                                                listen: false,
-                                              ).removeEntry(item.data.id);
+                                              if (context.mounted) {
+                                                await Provider.of<
+                                                      BudgetProvider
+                                                    >(context, listen: false)
+                                                    .removeEntry(item.data.id);
+                                              }
                                             }
                                           }
                                         },

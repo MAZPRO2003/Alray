@@ -6,6 +6,7 @@ import 'package:alray_app/models/payable.dart';
 import 'package:alray_app/models/snag_item.dart';
 import 'package:alray_app/models/labor_task.dart';
 import 'package:alray_app/models/labor_payment.dart';
+import 'package:alray_app/models/attendance_record.dart';
 
 const uuid = Uuid();
 
@@ -19,6 +20,7 @@ class Project {
   final List<SnagItem> snagItems;
   final List<LaborTask> laborTasks;
   final List<LaborPayment> laborPayments;
+  final List<AttendanceRecord> attendanceRecords;
   final double? latitude;
   final double? longitude;
   final DateTime? startDate;
@@ -35,6 +37,7 @@ class Project {
     List<SnagItem>? snagItems,
     List<LaborTask>? laborTasks,
     List<LaborPayment>? laborPayments,
+    List<AttendanceRecord>? attendanceRecords,
     this.latitude,
     this.longitude,
     this.startDate,
@@ -46,7 +49,8 @@ class Project {
        payables = payables ?? [],
        snagItems = snagItems ?? [],
        laborTasks = laborTasks ?? [],
-       laborPayments = laborPayments ?? [];
+       laborPayments = laborPayments ?? [],
+       attendanceRecords = attendanceRecords ?? [];
 
   factory Project.fromJson(
     Map<String, dynamic> json,
@@ -57,6 +61,7 @@ class Project {
     List<SnagItem> projectSnagItems,
     List<LaborTask> projectLaborTasks,
     List<LaborPayment> projectLaborPayments,
+    List<AttendanceRecord> projectAttendanceRecords,
   ) {
     return Project(
       id: documentId,
@@ -68,6 +73,7 @@ class Project {
       snagItems: projectSnagItems,
       laborTasks: projectLaborTasks,
       laborPayments: projectLaborPayments,
+      attendanceRecords: projectAttendanceRecords,
       latitude: json['latitude'] != null
           ? (json['latitude'] as num).toDouble()
           : null,

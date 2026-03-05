@@ -13,6 +13,7 @@ import 'package:alray_app/models/payable.dart';
 import 'package:alray_app/models/snag_item.dart';
 import 'package:alray_app/utils/currency_utils.dart';
 import 'package:alray_app/widgets/add_snag_item_dialog.dart';
+import 'package:alray_app/widgets/add_attendance_sheet.dart';
 import 'package:alray_app/widgets/transaction_details_dialog.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:alray_app/widgets/project_tabs/material_tab.dart';
@@ -180,11 +181,12 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
           title: const Text('Project Details'),
           bottom: const TabBar(
             isScrollable: true,
+            tabAlignment: TabAlignment.start,
             tabs: [
               Tab(text: 'Overview'),
               Tab(text: 'Customer'),
               Tab(text: 'Material'),
-              Tab(text: 'Labour'),
+              Tab(text: 'Attendance'),
               Tab(text: 'Specialized'),
             ],
           ),
@@ -296,6 +298,21 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
               child: const Icon(Icons.history_outlined, color: Colors.purple),
             ),
             const SizedBox(height: 8),
+            // Attendance
+            FloatingActionButton.small(
+              heroTag: 'add_attendance_fab_$projectId',
+              onPressed: () => showAddAttendanceSheet(
+                context,
+                Provider.of<BudgetProvider>(
+                  context,
+                  listen: false,
+                ).projects.firstWhere((p) => p.id == projectId),
+              ),
+              backgroundColor: Colors.blue.shade100,
+              tooltip: 'Record Attendance',
+              child: const Icon(Icons.people_outline, color: Colors.blue),
+            ),
+            const SizedBox(height: 8),
             // Revenue
             FloatingActionButton.small(
               heroTag: 'add_revenue_fab_$projectId',
@@ -333,7 +350,19 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
             delegate: SliverChildListDelegate([
               // Summary Card
               Card(
-                color: Theme.of(context).colorScheme.primaryContainer,
+                elevation: 0,
+                color: Theme.of(
+                  context,
+                ).colorScheme.primaryContainer.withValues(alpha: 0.5),
+                margin: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.1),
+                  ),
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
@@ -498,6 +527,12 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                   project.startDate != null &&
                   project.endDate != null)
                 Card(
+                  elevation: 0,
+                  margin: EdgeInsets.zero,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(color: Colors.grey.shade200),
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(

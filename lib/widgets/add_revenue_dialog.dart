@@ -165,7 +165,10 @@ class _AddRevenueDialogState extends State<AddRevenueDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final projects = Provider.of<BudgetProvider>(context).projects;
+    final projects = Provider.of<BudgetProvider>(
+      context,
+      listen: false,
+    ).projects;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),

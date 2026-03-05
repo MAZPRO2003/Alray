@@ -448,15 +448,6 @@ const _categoryGroups = {
     EntryCategory.paintM,
     EntryCategory.otherMiscMaterials,
   ],
-  'Labour': [
-    EntryCategory.masonL,
-    EntryCategory.electricalL,
-    EntryCategory.plumbingL,
-    EntryCategory.carpentryL,
-    EntryCategory.tileL,
-    EntryCategory.paintL,
-    EntryCategory.miscL,
-  ],
   'Specialized': [
     EntryCategory.planApproval,
     EntryCategory.additionalWorks,
@@ -478,13 +469,6 @@ const _categoryLabels = {
   EntryCategory.tileM: 'Tiles',
   EntryCategory.paintM: 'Paint (Material)',
   EntryCategory.otherMiscMaterials: 'Other Materials',
-  EntryCategory.masonL: 'Mason / Labour',
-  EntryCategory.electricalL: 'Electrician (Labour)',
-  EntryCategory.plumbingL: 'Plumber (Labour)',
-  EntryCategory.carpentryL: 'Carpenter (Labour)',
-  EntryCategory.tileL: 'Tile Fixer (Labour)',
-  EntryCategory.paintL: 'Painter (Labour)',
-  EntryCategory.miscL: 'Misc Labour',
   EntryCategory.planApproval: 'Plan Approval / Permit',
   EntryCategory.additionalWorks: 'Additional Works',
   EntryCategory.miscExp: 'Miscellaneous',
@@ -631,8 +615,6 @@ class _GroupedCategoryPicker extends StatelessWidget {
     switch (group) {
       case 'Material':
         return Colors.green.shade700;
-      case 'Labour':
-        return Colors.orange.shade700;
       default:
         return Colors.indigo;
     }
@@ -642,8 +624,6 @@ class _GroupedCategoryPicker extends StatelessWidget {
     switch (group) {
       case 'Material':
         return Icons.inventory_2_outlined;
-      case 'Labour':
-        return Icons.construction;
       default:
         return Icons.more_horiz;
     }

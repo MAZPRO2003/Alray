@@ -7,6 +7,7 @@ import 'package:alray_app/models/payable.dart';
 import 'package:alray_app/models/snag_item.dart';
 import 'package:alray_app/models/labor_task.dart';
 import 'package:alray_app/models/labor_payment.dart';
+import 'package:alray_app/models/attendance_record.dart';
 
 class BudgetProvider with ChangeNotifier {
   List<Project> _projects = [];
@@ -170,6 +171,10 @@ class BudgetProvider with ChangeNotifier {
             .collection('labor_payments')
             .where('userId', isEqualTo: _userId)
             .get(),
+        _firestore
+            .collection('attendance_records')
+            .where('userId', isEqualTo: _userId)
+            .get(),
       ]);
 
       final projectsSnapshot = results[0];
@@ -181,6 +186,7 @@ class BudgetProvider with ChangeNotifier {
       final snagsSnapshot = results[6];
       final laborTasksSnapshot = results[7];
       final laborPaymentsSnapshot = results[8];
+      final attendanceSnapshot = results[9];
 
       final List<ConstructionEntry> combinedEntries = [];
 
@@ -220,6 +226,11 @@ class BudgetProvider with ChangeNotifier {
           .map((doc) => LaborPayment.fromJson(doc.data(), doc.id))
           .toList();
 
+      final List<AttendanceRecord> allAttendanceRecords = attendanceSnapshot
+          .docs
+          .map((doc) => AttendanceRecord.fromJson(doc.data(), doc.id))
+          .toList();
+
       final List<Project> loadedProjects = projectsSnapshot.docs.map((doc) {
         final projectEntries = combinedEntries
             .where((e) => e.projectId == doc.id)
@@ -239,6 +250,9 @@ class BudgetProvider with ChangeNotifier {
         final projectLaborPayments = allLaborPayments
             .where((p) => p.projectId == doc.id)
             .toList();
+        final projectAttendanceRecords =
+            allAttendanceRecords.where((a) => a.projectId == doc.id).toList()
+              ..sort((a, b) => b.date.compareTo(a.date));
 
         projectMilestones.sort(
           (a, b) => a.dateCreated.compareTo(b.dateCreated),
@@ -254,6 +268,7 @@ class BudgetProvider with ChangeNotifier {
           projectSnags,
           projectLaborTasks,
           projectLaborPayments,
+          projectAttendanceRecords,
         );
       }).toList();
 
@@ -391,6 +406,7 @@ class BudgetProvider with ChangeNotifier {
         'snags',
         'labor_tasks',
         'labor_payments',
+        'attendance_records',
       ];
       for (var coll in collections) {
         final snap = await _firestore
@@ -820,6 +836,86 @@ class BudgetProvider with ChangeNotifier {
     } catch (e, st) {
       debugPrint('removeLaborPayment error: $e\n$st');
       await fetchAndSetProjects();
+    }
+  }
+
+  // ── Attendance Records ────────────────────────────────────────────────────
+
+  Future<void> addAttendanceRecord(AttendanceRecord record) async {
+    if (_userId == null) return;
+    final data = record.toJson();
+    data['userId'] = _userId;
+
+    try {
+      final docRef = await _firestore
+          .collection('attendance_records')
+          .add(data);
+      final addedRecord = record.copyWith(id: docRef.id);
+
+      final projectIndex = _projects.indexWhere(
+        (p) => p.id == record.projectId,
+      );
+      if (projectIndex >= 0) {
+        _projects[projectIndex].attendanceRecords.insert(0, addedRecord);
+        _projects[projectIndex].attendanceRecords.sort(
+          (a, b) => b.date.compareTo(a.date),
+        );
+        notifyListeners();
+      }
+    } catch (e, st) {
+      debugPrint('addAttendanceRecord error: $e\n$st');
+      await fetchAndSetProjects();
+      rethrow;
+    }
+  }
+
+  Future<void> updateAttendanceRecord(AttendanceRecord record) async {
+    if (_userId == null) return;
+    final data = record.toJson();
+    data['userId'] = _userId;
+
+    try {
+      await _firestore
+          .collection('attendance_records')
+          .doc(record.id)
+          .update(data);
+
+      final projectIndex = _projects.indexWhere(
+        (p) => p.id == record.projectId,
+      );
+      if (projectIndex >= 0) {
+        final idx = _projects[projectIndex].attendanceRecords.indexWhere(
+          (r) => r.id == record.id,
+        );
+        if (idx >= 0) {
+          _projects[projectIndex].attendanceRecords[idx] = record;
+          _projects[projectIndex].attendanceRecords.sort(
+            (a, b) => b.date.compareTo(a.date),
+          );
+          notifyListeners();
+        }
+      }
+    } catch (e, st) {
+      debugPrint('updateAttendanceRecord error: $e\n$st');
+      await fetchAndSetProjects();
+      rethrow;
+    }
+  }
+
+  Future<void> deleteAttendanceRecord(String projectId, String recordId) async {
+    try {
+      await _firestore.collection('attendance_records').doc(recordId).delete();
+      final projectIndex = _projects.indexWhere((p) => p.id == projectId);
+      if (projectIndex >= 0) {
+        _projects[projectIndex].attendanceRecords.removeWhere(
+          (r) => r.id == recordId,
+        );
+        notifyListeners();
+      }
+    } catch (e, st) {
+      debugPrint('deleteAttendanceRecord error: $e\n$st');
+      await fetchAndSetProjects();
+      rethrow;
     }
   }
 }

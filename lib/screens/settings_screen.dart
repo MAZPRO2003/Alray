@@ -5,6 +5,7 @@ import 'package:alray_app/providers/auth_provider.dart';
 import 'package:alray_app/utils/currency_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
+import 'package:alray_app/widgets/business_card_widget.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -55,6 +56,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
             trailing: const Icon(Icons.chevron_right),
             enabled: user != null,
             onTap: () => context.push('/settings/profile'),
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.contact_mail_outlined),
+            title: const Text('My Business Card'),
+            subtitle: const Text('View and share your digital card'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (context) => const BusinessCardWidget(),
+              );
+            },
           ),
           const Divider(),
           Consumer<AuthProvider>(

@@ -562,7 +562,7 @@ function App() {
 
             <div className="contact-details">
               {[
-                { icon: <MapPin />, title: 'Corporate Office', content: <>ALRAY ASSOCIATES,<br />1/1245, 1st Floor, West Main Road,<br />Kumudham Nagar, Mugalivakkam,<br />Chennai - 600 125.</> },
+                { icon: <MapPin />, title: 'Corporate Office', content: <>ALRAY ASSOCIATES,<br />1/1245, 1st Floor, West Main Road,<br />Kumudham Nagar Annex, Mugalivakkam,<br />Chennai - 600 125.</> },
                 { icon: <Phone />, title: 'Phone', content: '+91 86670 11700 / +91 98413 24123' },
                 { icon: <Mail />, title: 'Email', content: 'alrayassociates@gmail.com' },
                 { icon: <MessageCircle />, title: 'WhatsApp', content: '+91 86670 11700' },

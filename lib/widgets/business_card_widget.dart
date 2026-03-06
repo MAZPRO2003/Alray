@@ -133,7 +133,7 @@ class _BusinessCardWidgetState extends State<BusinessCardWidget> {
                               style: GoogleFonts.dancingScript(
                                 color: const Color(0xFFDD2C33), // Brighter red
                                 fontSize: 64, // Much larger font
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w900,
                                 height: 0.8,
                               ),
                             ),
@@ -188,7 +188,7 @@ class _BusinessCardWidgetState extends State<BusinessCardWidget> {
                               ),
                               const SizedBox(height: 4),
                               _buildContactText(
-                                'Kumudham Nagar, Mugalivakkam,',
+                                'Kumudham Nagar Annex, Mugalivakkam,',
                               ),
                               const SizedBox(height: 4),
                               _buildContactText('Chennai - 600 125.'),
@@ -202,6 +202,8 @@ class _BusinessCardWidgetState extends State<BusinessCardWidget> {
                                 'E-mail',
                                 'alrayassociates@gmail.com',
                               ),
+                              const SizedBox(height: 12),
+                              _buildContactRow('Website', 'www.alray.in'),
                             ],
                           ),
                         ),

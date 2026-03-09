@@ -186,7 +186,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
               Tab(text: 'Overview'),
               Tab(text: 'Customer'),
               Tab(text: 'Material'),
-              Tab(text: 'Attendance'),
+              Tab(text: 'Labour'),
               Tab(text: 'Specialized'),
             ],
           ),

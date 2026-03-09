@@ -18,6 +18,7 @@ import AddRevenueDialog from '../components/projects/AddRevenueDialog';
 import AddExpenseDialog from '../components/projects/AddExpenseDialog';
 import AddSnagItemDialog from '../components/projects/AddSnagItemDialog';
 import AddPayableDialog from '../components/projects/AddPayableDialog';
+import AddAttendanceDialog from '../components/projects/AddAttendanceDialog';
 
 export default function ProjectDetailsPage() {
     const { id } = useParams();
@@ -31,6 +32,7 @@ export default function ProjectDetailsPage() {
     const [isFabOpen, setIsFabOpen] = useState(false);
     const [isAddSnagOpen, setIsAddSnagOpen] = useState(false);
     const [isAddPayableOpen, setIsAddPayableOpen] = useState(false);
+    const [isAddAttendanceOpen, setIsAddAttendanceOpen] = useState(false);
 
     useEffect(() => {
         const unsubscribe = projectService.subscribeToProject(id, (data) => {
@@ -142,6 +144,20 @@ export default function ProjectDetailsPage() {
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.5, y: 20 }}
                                 transition={{ delay: 0.1 }}
+                                onClick={() => { setIsAddAttendanceOpen(true); setIsFabOpen(false); }}
+                                className="flex items-center gap-3 bg-blue-600 text-white rounded-full pl-5 pr-4 py-3 shadow-lg hover:bg-blue-700 transition-colors"
+                            >
+                                <span className="text-sm font-bold">Record Attendance</span>
+                                <div className="p-1 bg-white/20 rounded-full">
+                                    <Users size={18} />
+                                </div>
+                            </motion.button>
+
+                            <motion.button
+                                initial={{ opacity: 0, scale: 0.5, y: 20 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.5, y: 20 }}
+                                transition={{ delay: 0.15 }}
                                 onClick={() => { setIsAddPayableOpen(true); setIsFabOpen(false); }}
                                 className="flex items-center gap-3 bg-orange-600 text-white rounded-full pl-5 pr-4 py-3 shadow-lg hover:bg-orange-700 transition-colors"
                             >
@@ -155,7 +171,7 @@ export default function ProjectDetailsPage() {
                                 initial={{ opacity: 0, scale: 0.5, y: 20 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.5, y: 20 }}
-                                transition={{ delay: 0.15 }}
+                                transition={{ delay: 0.2 }}
                                 onClick={() => { setIsAddSnagOpen(true); setIsFabOpen(false); }}
                                 className="flex items-center gap-3 bg-slate-600 text-white rounded-full pl-5 pr-4 py-3 shadow-lg hover:bg-slate-700 transition-colors"
                             >
@@ -195,6 +211,11 @@ export default function ProjectDetailsPage() {
             <AddPayableDialog
                 isOpen={isAddPayableOpen}
                 onClose={() => setIsAddPayableOpen(false)}
+                projectId={id}
+            />
+            <AddAttendanceDialog
+                isOpen={isAddAttendanceOpen}
+                onClose={() => setIsAddAttendanceOpen(false)}
                 projectId={id}
             />
         </div>

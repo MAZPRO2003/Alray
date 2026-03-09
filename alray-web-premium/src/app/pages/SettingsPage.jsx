@@ -1,105 +1,147 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { User, Mail, Shield, Bell } from 'lucide-react';
+import { User, Mail, Shield, Bell, Contact, Info, LogOut, ChevronRight, Hash } from 'lucide-react';
+import BusinessCard from '../components/settings/BusinessCard';
 
 export default function SettingsPage() {
-    const { currentUser } = useAuth();
+    const { currentUser, logout } = useAuth();
+    const [isBusinessCardOpen, setIsBusinessCardOpen] = useState(false);
+
+    // Default to true (Indian System) like flutter
+    const [useIndianSystem, setUseIndianSystem] = useState(() => {
+        const stored = localStorage.getItem('indian_system');
+        return stored !== null ? stored === 'true' : true;
+    });
+
+    const toggleIndianSystem = (checked) => {
+        setUseIndianSystem(checked);
+        localStorage.setItem('indian_system', checked.toString());
+        // Reload page to apply formatting everywhere across the app
+        window.location.reload();
+    };
+
+    const handleLogout = async () => {
+        if (window.confirm('Are you sure you want to log out?')) {
+            try {
+                await logout();
+            } catch (error) {
+                console.error("Failed to log out", error);
+                alert("Failed to log out.");
+            }
+        }
+    };
 
     return (
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="max-w-4xl mx-auto space-y-6 pb-24 h-[calc(100vh-80px)] overflow-y-auto">
             <div>
-                <h1 className="text-2xl font-bold text-[var(--color-secondary)]">Profile & Settings</h1>
-                <p className="text-gray-500">Manage your account preferences and application settings.</p>
+                <h1 className="text-2xl font-bold text-[var(--color-secondary)]">Settings</h1>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-6 border-b border-gray-100">
-                    <h2 className="text-lg font-bold text-[var(--color-secondary)] flex items-center gap-2">
-                        <User size={20} className="text-[var(--color-primary)]" />
-                        Personal Information
-                    </h2>
-                </div>
-                <div className="p-6 space-y-4">
-                    <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
-                        <div className="w-32 text-gray-500 text-sm font-medium">Email Address</div>
-                        <div className="flex-1 flex items-center gap-3">
-                            <Mail size={16} className="text-gray-400" />
-                            <span className="text-[var(--color-secondary)] font-medium">{currentUser?.email || 'Not logged in'}</span>
+                <div className="p-0">
+                    {/* Account Profile */}
+                    <div className="p-4 flex items-center justify-between hover:bg-slate-50 cursor-pointer transition-colors border-b border-gray-100">
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+                                <User size={20} className="text-blue-500" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-slate-800 text-[15px]">Account Profile</h3>
+                                <p className="text-sm text-slate-500">{currentUser?.email || 'Not logged in'}</p>
+                            </div>
                         </div>
+                        <ChevronRight size={20} className="text-slate-400" />
                     </div>
-                    <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
-                        <div className="w-32 text-gray-500 text-sm font-medium">Account ID</div>
-                        <div className="flex-1 flex items-center gap-3">
-                            <Shield size={16} className="text-gray-400" />
-                            <span className="text-[var(--color-secondary)] font-mono text-sm">{currentUser?.uid || 'Unknown'}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-6 border-b border-gray-100">
-                    <h2 className="text-lg font-bold text-[var(--color-secondary)] flex items-center gap-2">
-                        <Bell size={20} className="text-[var(--color-primary)]" />
-                        Preferences
-                    </h2>
-                </div>
-                <div className="p-6 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="font-medium text-[var(--color-secondary)]">Email Notifications</p>
-                            <p className="text-sm text-gray-500">Receive alerts for new inquiries and project updates.</p>
+                    {/* My Business Card */}
+                    <div
+                        className="p-4 flex items-center justify-between hover:bg-slate-50 cursor-pointer transition-colors border-b border-gray-100"
+                        onClick={() => setIsBusinessCardOpen(true)}
+                    >
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center">
+                                <Contact size={20} className="text-purple-600" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-slate-800 text-[15px]">My Business Card</h3>
+                                <p className="text-sm text-slate-500">View and share your digital card</p>
+                            </div>
+                        </div>
+                        <ChevronRight size={20} className="text-slate-400" />
+                    </div>
+
+                    {/* Indian Unit System */}
+                    <div className="p-4 flex items-center justify-between border-b border-gray-100 hover:bg-slate-50 transition-colors">
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center">
+                                <Hash size={20} className="text-green-600" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-slate-800 text-[15px]">Indian Unit System</h3>
+                                <p className="text-sm text-slate-500">Use Lakhs & Crores (instead of M/B)</p>
+                            </div>
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" className="sr-only peer" defaultChecked />
+                            <input
+                                type="checkbox"
+                                className="sr-only peer"
+                                checked={useIndianSystem}
+                                onChange={(e) => toggleIndianSystem(e.target.checked)}
+                            />
                             <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--color-primary)]"></div>
                         </label>
                     </div>
 
-                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                        <div>
-                            <p className="font-medium text-[var(--color-secondary)]">App Theme</p>
-                            <p className="text-sm text-gray-500">The theme is permanently set to the Alray Premium Design System.</p>
+                    {/* App Theme (Fixed) */}
+                    <div className="p-4 flex items-center justify-between border-b border-gray-100">
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center">
+                                <Bell size={20} className="text-amber-500" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-slate-800 text-[15px]">App Theme</h3>
+                                <p className="text-sm text-slate-500">Alray Premium Design</p>
+                            </div>
                         </div>
-                        <span className="px-3 py-1 bg-[var(--color-secondary)] text-white text-xs font-medium rounded-full">
-                            Premium Fixed
-                        </span>
                     </div>
 
-                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                        <div>
-                            <p className="font-medium text-[var(--color-secondary)]">Sign Out</p>
-                            <p className="text-sm text-gray-500">Securely sign out of your account on this device.</p>
+                    {/* About App */}
+                    <div
+                        className="p-4 flex items-center justify-between hover:bg-slate-50 cursor-pointer transition-colors border-b border-gray-100"
+                        onClick={() => alert("Real Estate Budget Web v1.0.0")}
+                    >
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center">
+                                <Info size={20} className="text-slate-600" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-slate-800 text-[15px]">About App</h3>
+                                <p className="text-sm text-slate-500">Real Estate Budget v1.0.0</p>
+                            </div>
                         </div>
-                        <button
-                            className="px-4 py-2 border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 rounded-xl text-sm font-bold transition-colors"
-                        >
-                            Sign Out
-                        </button>
                     </div>
+
+                    {/* Logout */}
+                    <div
+                        className="p-4 flex items-center justify-between hover:bg-red-50 cursor-pointer transition-colors"
+                        onClick={handleLogout}
+                    >
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
+                                <LogOut size={20} className="text-red-500" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-red-500 text-[15px]">Logout</h3>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-6 border-b border-gray-100">
-                    <h2 className="text-lg font-bold text-[var(--color-secondary)] flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--color-primary)]"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                        Data & Reporting
-                    </h2>
-                </div>
-                <div className="p-6 space-y-4">
-                    <p className="text-sm text-gray-500 mb-4">Export your project and financial data for external reporting and analysis.</p>
-
-                    <div className="flex flex-col sm:flex-row gap-4">
-                        <button className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 hover:border-[var(--color-primary)] hover:bg-blue-50/50 rounded-xl text-sm font-bold text-gray-700 transition-colors flex items-center justify-center gap-2">
-                            Export Ledger (CSV)
-                        </button>
-                        <button className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 hover:border-[var(--color-primary)] hover:bg-blue-50/50 rounded-xl text-sm font-bold text-gray-700 transition-colors flex items-center justify-center gap-2">
-                            Generate Tax Report
-                        </button>
-                    </div>
-                </div>
-            </div>
+            {isBusinessCardOpen && (
+                <BusinessCard onClose={() => setIsBusinessCardOpen(false)} />
+            )}
         </div>
     );
 }

@@ -71,6 +71,12 @@ const attendanceRoles = [
     rateKey: 'tileLabourRate',
   ),
   LaborRole(
+    label: 'Painter',
+    icon: Icons.format_paint,
+    countKey: 'painter',
+    rateKey: 'painterRate',
+  ),
+  LaborRole(
     label: 'Others',
     icon: Icons.people_outline,
     countKey: 'others',
@@ -99,6 +105,8 @@ int getRoleCount(LaborRole role, AttendanceRecord r) {
       return r.grillWorker;
     case 'tileLabour':
       return r.tileLabour;
+    case 'painter':
+      return r.painter;
     case 'others':
       return r.others;
     case 'customEntered':
@@ -126,6 +134,8 @@ double getRoleRate(LaborRole role, AttendanceRecord r) {
       return r.grillWorkerRate;
     case 'tileLabourRate':
       return r.tileLabourRate;
+    case 'painterRate':
+      return r.painterRate;
     case 'othersRate':
       return r.othersRate;
     case 'customEnteredRate':
@@ -261,12 +271,14 @@ class _AttendanceSheetBodyState extends State<_AttendanceSheetBody> {
   Widget build(BuildContext context) {
     final existing = widget.existing;
 
-    return DraggableScrollableSheet(
-      initialChildSize: 0.92,
-      minChildSize: 0.5,
-      maxChildSize: 1,
-      expand: false,
-      builder: (_, scroll) => Column(
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: DraggableScrollableSheet(
+        initialChildSize: 0.92,
+        minChildSize: 0.5,
+        maxChildSize: 1,
+        expand: false,
+        builder: (_, scroll) => Column(
         children: [
           // ── Handle
           Container(
@@ -449,6 +461,7 @@ class _AttendanceSheetBodyState extends State<_AttendanceSheetBody> {
                       steelWorker: c('steelWorker'),
                       grillWorker: c('grillWorker'),
                       tileLabour: c('tileLabour'),
+                      painter: c('painter'),
                       others: c('others'),
                       customEntered:
                           int.tryParse(customCountCtrl.text.trim()) ?? 0,
@@ -460,6 +473,7 @@ class _AttendanceSheetBodyState extends State<_AttendanceSheetBody> {
                       steelWorkerRate: rt('steelWorkerRate'),
                       grillWorkerRate: rt('grillWorkerRate'),
                       tileLabourRate: rt('tileLabourRate'),
+                      painterRate: rt('painterRate'),
                       othersRate: rt('othersRate'),
                       customEnteredRate:
                           double.tryParse(customRateCtrl.text.trim()) ?? 0,
@@ -499,6 +513,7 @@ class _AttendanceSheetBodyState extends State<_AttendanceSheetBody> {
           ),
         ],
       ),
+    ),
     );
   }
 }

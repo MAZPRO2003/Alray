@@ -744,82 +744,82 @@ class _DayCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                if (presentRoles.isNotEmpty) ...[
+                if (presentRoles.isNotEmpty || record.customEntered > 0) ...[
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 6,
                     runSpacing: 4,
-                    children: presentRoles.map((r) {
-                      final c = getRoleCount(r, record);
-                      final rt = getRoleRate(r, record);
-                      final label = rt > 0
-                          ? '${r.label}: $c – ₹${_formatRate(rt)}'
-                          : '${r.label}: $c';
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.orange.shade200),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              r.icon,
-                              size: 11,
-                              color: Colors.orange.shade700,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              label,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.orange.shade900,
-                                fontWeight: FontWeight.w600,
+                    children: [
+                      ...presentRoles.map((r) {
+                        final c = getRoleCount(r, record);
+                        final rt = getRoleRate(r, record);
+                        final label = rt > 0
+                            ? '${r.label}: $c – ₹${_formatRate(rt)}'
+                            : '${r.label}: $c';
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.orange.shade200),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                r.icon,
+                                size: 11,
+                                color: Colors.orange.shade700,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 4),
+                              Text(
+                                label,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.orange.shade900,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                      if (record.customEntered > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.orange.shade200),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.star,
+                                size: 11,
+                                color: Colors.orange.shade700,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${record.customRoleName.isEmpty ? 'Custom' : record.customRoleName}: ${record.customEntered} – ₹${_formatRate(record.customEnteredRate)}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.orange.shade900,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      );
-                    }).toList(),
+                    ],
                   ),
-                  // Add dynamic custom role if present
-                  if (record.customEntered > 0)
-                    Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.star,
-                            size: 12,
-                            color: Colors.orange,
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              record.customRoleName.isEmpty
-                                  ? 'Custom'
-                                  : record.customRoleName,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            '${record.customEntered} × ₹${_formatRate(record.customEnteredRate)}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.blueGrey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                 ],
                 if (record.notes.isNotEmpty) ...[
                   const SizedBox(height: 6),

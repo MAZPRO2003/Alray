@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, CheckCircle2, IndianRupee, Calendar, FileText, Hash, User } from 'lucide-react';
 import { expenseService } from '../../services/expenseService';
 import { useAuth } from '../../context/AuthContext';
+import { receiptGenerator } from '../../utils/receiptGenerator';
 
 export default function AddRevenueDialog({ isOpen, onClose, projectId, initialData }) {
     const { currentUser } = useAuth();
@@ -71,6 +72,8 @@ export default function AddRevenueDialog({ isOpen, onClose, projectId, initialDa
                 await expenseService.updateExpense(initialData.id, submitData);
             } else {
                 await expenseService.addRevenue(currentUser.uid, { ...submitData, projectId });
+                // Generate PDF receipt on successful save
+                receiptGenerator.generate({ ...submitData, id: 'temp' });
             }
 
             onClose();

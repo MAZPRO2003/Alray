@@ -29,6 +29,7 @@ class AttendanceReportGenerator {
     'steel worker',
     'grill worker',
     'tile labour',
+    'Painter',
     'Custom',
     'others',
     'Total Workers',
@@ -49,7 +50,8 @@ class AttendanceReportGenerator {
       excel.rename('Sheet1', sheetName);
       final sheet = excel[sheetName];
 
-      _writeHeaders(sheet);
+      final customName = _getUniqueCustomNameFromRecords(records);
+      _writeHeaders(sheet, customName: customName);
       final sorted = [...records]..sort((a, b) => a.date.compareTo(b.date));
       for (var i = 0; i < sorted.length; i++) {
         _writeRow(sheet, i + 1, sorted[i]);
@@ -106,7 +108,8 @@ class AttendanceReportGenerator {
         )
         ..cellStyle = CellStyle(italic: true);
 
-      _writeHeaders(sheet, startRow: 3);
+      final customName = _getUniqueCustomNameFromRecords(weekRecords);
+      _writeHeaders(sheet, startRow: 3, customName: customName);
       for (var i = 0; i < weekRecords.length; i++) {
         _writeRow(sheet, 4 + i, weekRecords[i]);
       }
@@ -152,17 +155,33 @@ class AttendanceReportGenerator {
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  static void _writeHeaders(Sheet sheet, {int startRow = 0}) {
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  static void _writeHeaders(Sheet sheet, {int startRow = 0, String? customName}) {
     final style = CellStyle(
       bold: true,
       backgroundColorHex: ExcelColor.fromHexString('#1565C0'),
       fontColorHex: ExcelColor.fromHexString('#FFFFFF'),
     );
     for (var i = 0; i < _cols.length; i++) {
+      var headerText = _cols[i];
+      if (headerText == 'Custom' && customName != null) {
+        headerText = customName;
+      }
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: startRow))
-        ..value = TextCellValue(_cols[i])
+        ..value = TextCellValue(headerText)
         ..cellStyle = style;
     }
+  }
+
+  static String? _getUniqueCustomNameFromRecords(List<AttendanceRecord> records) {
+    if (records.isEmpty) return null;
+    final names =
+        records
+            .where((r) => r.customEntered > 0 && r.customRoleName.isNotEmpty)
+            .map((r) => r.customRoleName)
+            .toSet();
+    return names.length == 1 ? names.first : null;
   }
 
   static String _cell(int count, double rate) {
@@ -185,6 +204,7 @@ class AttendanceReportGenerator {
       TextCellValue(_cell(r.steelWorker, r.steelWorkerRate)),
       TextCellValue(_cell(r.grillWorker, r.grillWorkerRate)),
       TextCellValue(_cell(r.tileLabour, r.tileLabourRate)),
+      TextCellValue(_cell(r.painter, r.painterRate)),
       TextCellValue(
         r.customRoleName.isEmpty
             ? _cell(r.customEntered, r.customEnteredRate)
@@ -207,12 +227,12 @@ class AttendanceReportGenerator {
 
   static void _applyWidths(Sheet sheet) {
     sheet.setColumnWidth(0, 14);
-    for (var i = 1; i <= 10; i++) {
+    for (var i = 1; i <= 11; i++) {
       sheet.setColumnWidth(i, 14);
     }
-    sheet.setColumnWidth(11, 14);
-    sheet.setColumnWidth(12, 16);
-    sheet.setColumnWidth(13, 22);
+    sheet.setColumnWidth(12, 14);
+    sheet.setColumnWidth(13, 16);
+    sheet.setColumnWidth(14, 22);
   }
 
   static Future<void> _saveAndShare(
@@ -362,6 +382,7 @@ class AttendanceReportGenerator {
     'steel\nworker',
     'grill\nworker',
     'tile\nlabour',
+    'Painter',
     'Custom',
     'others',
     'Total\nWorkers',
@@ -400,6 +421,7 @@ class AttendanceReportGenerator {
     );
     final cellStyle = const pw.TextStyle(fontSize: 8);
 
+    final customName = _getUniqueCustomNameFromRecords(records);
     return pw.Table(
       border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
       columnWidths: {
@@ -414,8 +436,9 @@ class AttendanceReportGenerator {
         8: const pw.FlexColumnWidth(),
         9: const pw.FlexColumnWidth(),
         10: const pw.FlexColumnWidth(),
-        11: const pw.FixedColumnWidth(38),
-        12: const pw.FixedColumnWidth(50),
+        11: const pw.FlexColumnWidth(),
+        12: const pw.FixedColumnWidth(38),
+        13: const pw.FixedColumnWidth(50),
       },
       children: [
         // Header row
@@ -423,7 +446,13 @@ class AttendanceReportGenerator {
           decoration: const pw.BoxDecoration(
             color: PdfColor.fromInt(0xFF1565C0),
           ),
-          children: _pdfHeaders.map((h) => _pdfW(h, headerStyle)).toList(),
+          children: _pdfHeaders.map((h) {
+            var header = h;
+            if (header == 'Custom' && customName != null) {
+              header = customName;
+            }
+            return _pdfW(header, headerStyle);
+          }).toList(),
         ),
         // Data rows
         ...records.asMap().entries.map((e) {
@@ -442,6 +471,7 @@ class AttendanceReportGenerator {
               _pdfW(_pdfCell(r.steelWorker, r.steelWorkerRate), cellStyle),
               _pdfW(_pdfCell(r.grillWorker, r.grillWorkerRate), cellStyle),
               _pdfW(_pdfCell(r.tileLabour, r.tileLabourRate), cellStyle),
+              _pdfW(_pdfCell(r.painter, r.painterRate), cellStyle),
               _pdfW(
                 _pdfCell(
                   r.customEntered,

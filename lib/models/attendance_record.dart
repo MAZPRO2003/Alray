@@ -20,6 +20,7 @@ class AttendanceRecord {
   final int steelWorker;
   final int grillWorker;
   final int tileLabour;
+  final int painter;
   final int customEntered;
   final int others;
 
@@ -32,6 +33,7 @@ class AttendanceRecord {
   final double steelWorkerRate;
   final double grillWorkerRate;
   final double tileLabourRate;
+  final double painterRate;
   final double customEnteredRate;
   final double othersRate;
 
@@ -50,6 +52,7 @@ class AttendanceRecord {
     this.steelWorker = 0,
     this.grillWorker = 0,
     this.tileLabour = 0,
+    this.painter = 0,
     this.customEntered = 0,
     this.others = 0,
     this.masonRate = 0,
@@ -60,6 +63,7 @@ class AttendanceRecord {
     this.steelWorkerRate = 0,
     this.grillWorkerRate = 0,
     this.tileLabourRate = 0,
+    this.painterRate = 0,
     this.customEnteredRate = 0,
     this.othersRate = 0,
     this.customRoleName = '',
@@ -76,6 +80,7 @@ class AttendanceRecord {
       steelWorker +
       grillWorker +
       tileLabour +
+      painter +
       customEntered +
       others;
 
@@ -88,6 +93,7 @@ class AttendanceRecord {
       steelWorker * steelWorkerRate +
       grillWorker * grillWorkerRate +
       tileLabour * tileLabourRate +
+      painter * painterRate +
       customEntered * customEnteredRate +
       others * othersRate;
 
@@ -107,6 +113,7 @@ class AttendanceRecord {
       steelWorker: _i('steelWorker'),
       grillWorker: _i('grillWorker'),
       tileLabour: _i('tileLabour'),
+      painter: _i('painter'),
       customEntered: _i('customEntered'),
       others: _i('others'),
       masonRate: _d('masonRate'),
@@ -117,6 +124,7 @@ class AttendanceRecord {
       steelWorkerRate: _d('steelWorkerRate'),
       grillWorkerRate: _d('grillWorkerRate'),
       tileLabourRate: _d('tileLabourRate'),
+      painterRate: _d('painterRate'),
       customEnteredRate: _d('customEnteredRate'),
       othersRate: _d('othersRate'),
       customRoleName: json['customRoleName'] as String? ?? '',
@@ -135,6 +143,7 @@ class AttendanceRecord {
     'steelWorker': steelWorker,
     'grillWorker': grillWorker,
     'tileLabour': tileLabour,
+    'painter': painter,
     'customEntered': customEntered,
     'others': others,
     'masonRate': masonRate,
@@ -145,6 +154,7 @@ class AttendanceRecord {
     'steelWorkerRate': steelWorkerRate,
     'grillWorkerRate': grillWorkerRate,
     'tileLabourRate': tileLabourRate,
+    'painterRate': painterRate,
     'customEnteredRate': customEnteredRate,
     'othersRate': othersRate,
     'customRoleName': customRoleName,
@@ -163,6 +173,7 @@ class AttendanceRecord {
     int? steelWorker,
     int? grillWorker,
     int? tileLabour,
+    int? painter,
     int? customEntered,
     int? others,
     double? masonRate,
@@ -173,6 +184,7 @@ class AttendanceRecord {
     double? steelWorkerRate,
     double? grillWorkerRate,
     double? tileLabourRate,
+    double? painterRate,
     double? customEnteredRate,
     double? othersRate,
     String? customRoleName,
@@ -190,6 +202,7 @@ class AttendanceRecord {
       steelWorker: steelWorker ?? this.steelWorker,
       grillWorker: grillWorker ?? this.grillWorker,
       tileLabour: tileLabour ?? this.tileLabour,
+      painter: painter ?? this.painter,
       customEntered: customEntered ?? this.customEntered,
       others: others ?? this.others,
       masonRate: masonRate ?? this.masonRate,
@@ -200,6 +213,7 @@ class AttendanceRecord {
       steelWorkerRate: steelWorkerRate ?? this.steelWorkerRate,
       grillWorkerRate: grillWorkerRate ?? this.grillWorkerRate,
       tileLabourRate: tileLabourRate ?? this.tileLabourRate,
+      painterRate: painterRate ?? this.painterRate,
       customEnteredRate: customEnteredRate ?? this.customEnteredRate,
       othersRate: othersRate ?? this.othersRate,
       customRoleName: customRoleName ?? this.customRoleName,

@@ -11,7 +11,6 @@ import { milestoneService } from '../../../services/milestoneService';
 import { snagService } from '../../../services/snagService';
 import { payableService } from '../../../services/payableService';
 import { expenseService } from '../../../services/expenseService';
-import { laborTaskService } from '../../../services/labourService';
 import AddMilestoneDialog from '../AddMilestoneDialog';
 import AddSnagItemDialog from '../AddSnagItemDialog';
 import { generateOverallReportPDF, generateOverallReportCSV } from '../../../utils/exportUtils';
@@ -23,7 +22,6 @@ export default function OverviewTab({ project }) {
     const [snags, setSnags] = useState([]);
     const [payables, setPayables] = useState([]);
     const [entries, setEntries] = useState([]);
-    const [laborTasks, setLaborTasks] = useState([]);
     const [isAddMilestoneOpen, setIsAddMilestoneOpen] = useState(false);
     const [isAddSnagOpen, setIsAddSnagOpen] = useState(false);
     const [editingSnag, setEditingSnag] = useState(null);
@@ -46,8 +44,7 @@ export default function OverviewTab({ project }) {
             milestoneService.subscribeToProjectMilestones(currentUser.uid, project.id, setMilestones),
             snagService.subscribeToProjectSnags(currentUser.uid, project.id, setSnags),
             payableService.subscribeToProjectPayables(currentUser.uid, project.id, setPayables),
-            expenseService.subscribeToProjectExpenses(currentUser.uid, project.id, setEntries),
-            laborTaskService.subscribeToProjectTasks(currentUser.uid, project.id, setLaborTasks)
+            expenseService.subscribeToProjectExpenses(currentUser.uid, project.id, setEntries)
         ];
 
         setLoading(false);
@@ -87,6 +84,7 @@ export default function OverviewTab({ project }) {
     }, 0);
 
     const remainingBudget = Math.max(0, project.budget - totalSpent);
+    const cashOnHand = totalReceived - totalSpent;
 
     // Timeline & Health
     const getTimeElapsed = () => {
@@ -185,6 +183,15 @@ export default function OverviewTab({ project }) {
                             <h2 className="text-xl font-bold text-sky-400">{formatCurrency(pendingPayables)}</h2>
                         </div>
                     </div>
+
+                    {cashOnHand < 0 && (
+                        <div className="mt-8 relative z-10 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-3">
+                            <ShieldAlert size={20} className="text-red-400 shrink-0" />
+                            <p className="text-sm font-bold text-red-200">
+                                Shortage of <span className="text-red-400 font-black">{formatCurrency(Math.abs(cashOnHand))}</span>
+                            </p>
+                        </div>
+                    )}
 
                     <div className="mt-8 pt-6 border-t border-white/10 flex items-center justify-between">
                         <div className="flex items-center gap-3">

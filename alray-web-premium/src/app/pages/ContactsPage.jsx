@@ -1,21 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Plus, Search, Phone, Mail, Building2,
-    UserPlus, Users, Edit2, MoreVertical,
-    ChevronRight, MapPin, Contact2, Heart
+    Search, UserPlus, Edit2, MessageSquareText
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { contactService } from '../services/contactService';
 import AddContactDialog from '../components/contacts/AddContactDialog';
 import EditContactDialog from '../components/contacts/EditContactDialog';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 export default function ContactsPage() {
     const { currentUser } = useAuth();
+    const navigate = useNavigate();
     const [contacts, setContacts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedRole, setSelectedRole] = useState('All');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [editingContact, setEditingContact] = useState(null);
 
@@ -28,157 +28,164 @@ export default function ContactsPage() {
         return () => unsubscribe();
     }, [currentUser]);
 
-    const filtered = contacts.filter(c =>
-        !searchQuery ||
-        c.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.phoneNumber?.includes(searchQuery) ||
-        c.company?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.role?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    // Extract unique roles for filter chips (only for non-Customers, but we'll include all here just in case)
+    const workers = contacts.filter(c => c.role !== 'Customer');
+    const roles = ['All', ...new Set(workers.map(c => c.role).filter(Boolean))].sort();
 
-    const grouped = filtered.reduce((acc, c) => {
-        const key = c.category || 'Other';
-        if (!acc[key]) acc[key] = [];
-        acc[key].push(c);
-        return acc;
-    }, {});
+    // Apply search and role filters
+    const filtered = workers.filter(c => {
+        const matchesQuery = !searchQuery ||
+            c.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            c.phoneNumber?.includes(searchQuery) ||
+            c.company?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            c.role?.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const categoryColors = {
-        'Others': { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-100', dot: 'bg-indigo-500' },
-        'Labour': { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-100', dot: 'bg-orange-500' },
-        'Client': { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-100', dot: 'bg-emerald-500' },
-        'Other': { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-100', dot: 'bg-slate-400' },
+        const matchesRole = selectedRole === 'All' || c.role === selectedRole;
+        return matchesQuery && matchesRole;
+    });
+
+    // Sort newest first, then by call count (if available)
+    filtered.sort((a, b) => {
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : (a.createdAt ? new Date(a.createdAt) : new Date(0));
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : (b.createdAt ? new Date(b.createdAt) : new Date(0));
+
+        if (dateA.getTime() !== dateB.getTime()) {
+            return dateB.getTime() - dateA.getTime();
+        }
+        return (b.callCount || 0) - (a.callCount || 0);
+    });
+
+    const handleDelete = async (contact) => {
+        if (window.confirm(`Are you sure you want to delete ${contact.name}?`)) {
+            try {
+                await contactService.deleteContact(contact.id);
+            } catch (error) {
+                console.error("Error deleting contact", error);
+                alert("Failed to delete contact");
+            }
+        }
     };
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-6">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-black text-slate-800 tracking-tight">Directory</h1>
-                    <p className="text-slate-500 font-medium mt-1">
-                        Manage your network of {contacts.length} people and professionals.
+                    <h1 className="text-2xl font-bold" style={{ color: 'var(--color-secondary)' }}>People</h1>
+                    <p style={{ color: 'var(--color-text-light)', fontSize: '14px', marginTop: '4px' }}>
+                        Manage your network of contacts and professionals.
                     </p>
                 </div>
-                <button
-                    onClick={() => setIsAddModalOpen(true)}
-                    className="flex items-center gap-2 bg-slate-900 text-white px-8 py-3.5 rounded-[1.5rem] font-black text-sm shadow-xl shadow-slate-200 hover:scale-[1.02] transition-all"
-                >
-                    <UserPlus size={20} /> Add New Person
-                </button>
             </div>
 
-            {/* Search & Stats */}
-            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-                <div className="relative w-full max-w-md">
-                    <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                        type="text"
-                        placeholder="Search by name, role, or company..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-12 pr-4 py-4 rounded-2xl border-none bg-white shadow-sm focus:ring-2 focus:ring-red-500/10 font-medium transition-all"
-                    />
-                </div>
+            {/* Search */}
+            <div className="relative w-full max-w-md">
+                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                    type="text"
+                    placeholder="Search people..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-12 pr-4 py-3 rounded-2xl bg-white shadow-sm border border-slate-100 focus:outline-none font-medium"
+                />
+            </div>
 
-                <div className="flex gap-2 overflow-x-auto pb-2 w-full md:w-auto">
-                    {Object.keys(grouped).map(cat => (
-                        <span key={cat} className="px-4 py-2 rounded-xl bg-white text-[10px] font-black uppercase tracking-widest text-slate-500 border border-slate-100 whitespace-nowrap">
-                            {cat}: {grouped[cat].length}
-                        </span>
+            {/* Role Filter Chips */}
+            {roles.length > 1 && (
+                <div className="flex gap-2 overflow-x-auto pb-2 w-full custom-scrollbar">
+                    {roles.map(role => (
+                        <button
+                            key={role}
+                            onClick={() => setSelectedRole(role)}
+                            className="px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap border transition-colors inline-flex items-center gap-1.5"
+                            style={{
+                                background: selectedRole === role ? 'rgba(79, 70, 229, 0.1)' : 'white',
+                                color: selectedRole === role ? '#4f46e5' : 'var(--color-text-light)',
+                                borderColor: selectedRole === role ? '#4f46e5' : 'var(--color-border)',
+                            }}
+                        >
+                            {selectedRole === role && (
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                    <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                                </svg>
+                            )}
+                            {role}
+                        </button>
                     ))}
                 </div>
-            </div>
+            )}
 
-            {/* Content */}
+            {/* Content List */}
             {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {[1, 2, 3].map(i => <div key={i} className="h-40 bg-white rounded-[2.5rem] animate-pulse border border-slate-100" />)}
+                <div className="space-y-4">
+                    {[1, 2, 3].map(i => <div key={i} className="h-24 bg-white rounded-2xl animate-pulse border border-slate-100" />)}
                 </div>
             ) : filtered.length === 0 ? (
-                <div className="bg-white rounded-[3rem] border border-slate-100 p-20 text-center shadow-sm">
-                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <Users size={40} className="text-slate-200" />
-                    </div>
-                    <p className="font-black text-xl text-slate-800">No match found</p>
-                    <p className="text-slate-400 font-medium mt-2">Try adjusting your search or add a new person.</p>
+                <div className="text-center py-20 text-slate-500 font-medium">
+                    {searchQuery ? 'No matches found.' : 'No people added yet.'}
                 </div>
             ) : (
-                <div className="space-y-12 pb-20">
-                    {Object.entries(grouped).map(([category, items]) => {
-                        const colors = categoryColors[category] || categoryColors['Other'];
-                        return (
-                            <div key={category} className="space-y-6">
-                                <div className="flex items-center gap-4 px-2">
-                                    <div className={`w-1.5 h-6 rounded-full ${colors.dot}`} />
-                                    <h2 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">{category}S</h2>
-                                    <div className="flex-1 h-px bg-slate-100" />
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                                    {items.map((contact, idx) => (
-                                        <motion.div
-                                            key={contact.id}
-                                            layout
-                                            initial={{ opacity: 0, scale: 0.95 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            transition={{ delay: idx * 0.05 }}
-                                            className="group relative"
+                <div className="space-y-4 pb-24">
+                    {filtered.map((contact, idx) => (
+                        <motion.div
+                            key={contact.id}
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: idx * 0.05 }}
+                        >
+                            <Link to={`/app/contacts/${contact.id}`} className="block">
+                                <div className="bg-white rounded-2xl border border-slate-100 p-4 flex items-center gap-4 hover:shadow-md transition-shadow cursor-pointer">
+                                    <div className="w-14 h-14 rounded-full bg-indigo-50 flex items-center justify-center font-bold text-xl text-indigo-700 shrink-0">
+                                        {contact.name?.charAt(0).toUpperCase() || '?'}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="font-bold text-slate-800 text-lg truncate">{contact.name}</h3>
+                                        <p className="text-sm font-semibold text-indigo-600 truncate">{contact.role}</p>
+                                    </div>
+
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={(e) => { e.preventDefault(); setEditingContact(contact); }}
+                                            className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"
                                         >
-                                            <div className="bg-white rounded-[2.2rem] border border-slate-100 p-6 flex flex-col h-full hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500">
-                                                <div className="flex items-start justify-between mb-6">
-                                                    <Link to={`/app/contacts/${contact.id}`} className="flex items-center gap-4 group/avatar">
-                                                        <div className={`w-14 h-14 rounded-[1.2rem] ${colors.bg} flex items-center justify-center font-black text-xl ${colors.text} shadow-inner group-hover/avatar:scale-105 transition-transform`}>
-                                                            {contact.name?.charAt(0).toUpperCase()}
-                                                        </div>
-                                                        <div className="min-w-0">
-                                                            <h3 className="font-black text-slate-800 text-base truncate pr-2 group-hover:text-red-600 transition-colors">{contact.name}</h3>
-                                                            <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${colors.bg} ${colors.text}`}>
-                                                                {contact.role}
-                                                            </span>
-                                                        </div>
-                                                    </Link>
-                                                    <button
-                                                        onClick={(e) => { e.preventDefault(); setEditingContact(contact); }}
-                                                        className="p-2 rounded-xl text-slate-300 hover:text-slate-900 hover:bg-slate-50 transition-all"
-                                                    >
-                                                        <Edit2 size={16} />
-                                                    </button>
-                                                </div>
-
-                                                <div className="space-y-3 mt-auto">
-                                                    {contact.phoneNumber && (
-                                                        <a href={`tel:${contact.phoneNumber}`} className="flex items-center gap-3 text-sm font-bold text-slate-600 hover:text-red-500 transition-colors">
-                                                            <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-red-50 group-hover:text-red-500 transition-colors">
-                                                                <Phone size={14} />
-                                                            </div>
-                                                            {contact.phoneNumber}
-                                                        </a>
-                                                    )}
-                                                    {contact.company && (
-                                                        <div className="flex items-center gap-3 text-sm font-bold text-slate-400">
-                                                            <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center">
-                                                                <Building2 size={14} />
-                                                            </div>
-                                                            <span className="truncate">{contact.company}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                <Link
-                                                    to={`/app/contacts/${contact.id}`}
-                                                    className="mt-6 flex items-center justify-center gap-2 py-3 rounded-2xl bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-slate-900 hover:text-white transition-all"
-                                                >
-                                                    View Details <ChevronRight size={14} />
-                                                </Link>
-                                            </div>
-                                        </motion.div>
-                                    ))}
+                                            <Edit2 size={18} />
+                                        </button>
+                                        <button
+                                            onClick={(e) => { e.preventDefault(); handleDelete(contact); }}
+                                            className="p-2 text-slate-400 hover:text-red-600 transition-colors"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                        );
-                    })}
+                            </Link>
+                        </motion.div>
+                    ))}
                 </div>
             )}
+
+            {/* Floating Action Buttons */}
+            <div className="fixed bottom-6 right-6 flex flex-col gap-3 z-50">
+                <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => navigate('/app/chat')}
+                    className="w-12 h-12 rounded-full flex items-center justify-center shadow-lg text-white"
+                    style={{ background: '#4f46e5' }}
+                    title="AI Chat Assistant"
+                >
+                    <MessageSquareText size={20} />
+                </motion.button>
+                <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setIsAddModalOpen(true)}
+                    className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg text-white"
+                    style={{ background: 'var(--color-primary)' }}
+                >
+                    <UserPlus size={24} />
+                </motion.button>
+            </div>
 
             <AddContactDialog
                 isOpen={isAddModalOpen}

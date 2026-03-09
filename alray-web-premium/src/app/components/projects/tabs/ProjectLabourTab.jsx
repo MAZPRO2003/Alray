@@ -1,307 +1,314 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Plus, Hammer, Users, Calendar,
-    CheckCircle2, Clock, ChevronRight,
-    TrendingUp, FileText, Layout, ArrowRight,
-    IndianRupee, MoreVertical, Trash2, Edit2
+    Plus, Calendar as CalendarIcon, FileText,
+    CheckCircle2, Layout, ArrowRight, X, Trash2, Edit2,
+    Users, IndianRupee, Banknote, CalendarDays, ClipboardList, Star
 } from 'lucide-react';
-import { laborTaskService, laborPaymentService } from '../../../services/labourService';
-import { projectService } from '../../../services/projectService';
+import { attendanceService } from '../../../services/attendanceService';
 import { useAuth } from '../../../context/AuthContext';
-import AddLabourTaskDialog from '../AddLabourTaskDialog';
-import AddLabourPaymentDialog from '../AddLabourPaymentDialog';
-import { generateLabourPDF, generateLabourCSV } from '../../../utils/labourExportUtils';
+import AddAttendanceDialog from '../AddAttendanceDialog';
+import { generateAttendancePDF, generateAttendanceCSV } from '../../../utils/labourExportUtils';
 
-export default function ProjectLaborTab({ projectId }) {
+const roles = [
+    { key: 'mason', title: 'Mason', countKey: 'mason', rateKey: 'masonRate' },
+    { key: 'helper', title: 'Helper', countKey: 'helper', rateKey: 'helperRate' },
+    { key: 'plumber', title: 'Plumber', countKey: 'plumber', rateKey: 'plumberRate' },
+    { key: 'electrician', title: 'Electrician', countKey: 'electrician', rateKey: 'electricianRate' },
+    { key: 'carpenter', title: 'Carpenter', countKey: 'carpenter', rateKey: 'carpenterRate' },
+    { key: 'steelWorker', title: 'Steel worker', countKey: 'steelWorker', rateKey: 'steelWorkerRate' },
+    { key: 'grillWorker', title: 'Grill worker', countKey: 'grillWorker', rateKey: 'grillWorkerRate' },
+    { key: 'tileLabour', title: 'Tile labour', countKey: 'tileLabour', rateKey: 'tileLabourRate' },
+    { key: 'painter', title: 'Painter', countKey: 'painter', rateKey: 'painterRate' },
+    { key: 'others', title: 'Others', countKey: 'others', rateKey: 'othersRate' }
+];
+
+export default function ProjectLabourTab({ projectId, project }) {
     const { currentUser } = useAuth();
-    const [project, setProject] = useState(null);
-    const [tasks, setTasks] = useState([]);
-    const [payments, setPayments] = useState([]);
+    const [records, setRecords] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // Dialog States
-    const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
-    const [editTask, setEditTask] = useState(null);
-    const [isAddPaymentOpen, setIsAddPaymentOpen] = useState(false);
-    const [editPayment, setEditPayment] = useState(null);
-    const [exportMode, setExportMode] = useState('combined');
+    const [isAddOpen, setIsAddOpen] = useState(false);
+    const [editRecord, setEditRecord] = useState(null);
+    const [filterDate, setFilterDate] = useState(null);
 
     useEffect(() => {
         if (!currentUser) return;
-        const subs = [
-            projectService.subscribeToProject(projectId, setProject),
-            laborTaskService.subscribeToProjectTasks(currentUser.uid, projectId, setTasks),
-            laborPaymentService.subscribeToProjectPayments(currentUser.uid, projectId, setPayments)
-        ];
-        setLoading(false);
-        return () => subs.forEach(unsub => unsub());
+        const unsub = attendanceService.subscribeToProjectAttendance(currentUser.uid, projectId, (data) => {
+            setRecords(data);
+            setLoading(false);
+        });
+        return () => unsub();
     }, [projectId, currentUser]);
 
     const formatCurrency = (amount) => {
-        return new Intl.NumberFormat('en-IN', {
-            style: 'currency', currency: 'INR', maximumFractionDigits: 0
-        }).format(amount || 0);
+        return new Intl.NumberFormat('en-IN').format(Math.round(amount || 0));
     };
 
-    const formatDate = (date) => {
-        if (!date) return '—';
-        const d = date.toDate ? date.toDate() : new Date(date);
-        return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    const formatDate = (dStr) => {
+        if (!dStr) return '';
+        const d = dStr.toDate ? dStr.toDate() : new Date(dStr);
+        return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', weekday: 'short' });
     };
 
-    // Task Grouping (Mobile Parity)
-    const ongoingTasks = tasks.filter(t => t.completionPercentage > 0 && t.completionPercentage < 1);
-    const pendingTasks = tasks.filter(t => t.completionPercentage === 0 || t.completionPercentage === undefined);
-    const doneTasks = tasks.filter(t => t.completionPercentage === 1);
+    const calculateTotals = (recordList) => {
+        let workers = 0;
+        let cost = 0;
+        recordList.forEach(r => {
+            roles.forEach(role => {
+                workers += (r[role.countKey] || 0);
+                cost += (r[role.countKey] || 0) * (r[role.rateKey] || 0);
+            });
+            workers += (r.customEntered || 0);
+            cost += (r.customEntered || 0) * (r.customEnteredRate || 0);
+        });
+        return { workers, cost };
+    };
 
-    const totalLabourSpent = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
-
-    const handleProgressUpdate = async (taskId, value) => {
-        try {
-            await laborTaskService.updateTaskProgress(taskId, value);
-        } catch (error) {
-            console.error('Failed to update progress:', error);
+    const handleDelete = async (id) => {
+        if (window.confirm('Delete Entry?\nRemove attendance for this day?')) {
+            await attendanceService.deleteAttendanceRecord(projectId, id);
         }
     };
 
-    const handleDeleteTask = async (id) => {
-        if (window.confirm('Are you sure you want to delete this task?')) {
-            await laborTaskService.deleteTask(id);
-        }
+    const openAdd = (existing = null, preset = null) => {
+        setEditRecord(existing);
+        setIsAddOpen(true);
     };
 
-    const handleDeletePayment = async (id) => {
-        if (window.confirm('Are you sure you want to delete this payment?')) {
-            try {
-                await laborPaymentService.deletePayment(id);
-            } catch (error) {
-                console.error('Failed to delete payment:', error);
-            }
-        }
+    // Derived Date logic
+    const { workers: totalWorkerDays, cost: totalCost } = calculateTotals(records);
+    const totalDays = records.length;
+
+    // Filter Logic
+    const isSameDay = (d1, d2) => {
+        if (!d1 || !d2) return false;
+        const date1 = d1.toDate ? d1.toDate() : new Date(d1);
+        const date2 = d2.toDate ? d2.toDate() : new Date(d2);
+        return date1.toDateString() === date2.toDateString();
     };
 
-    if (loading) return <div className="p-10 text-center text-slate-400">Loading Labour Details...</div>;
+    const filteredRecords = filterDate
+        ? records.filter(r => isSameDay(r.date, filterDate))
+        : [];
 
-    return (
-        <div className="space-y-8 pb-10">
-            {/* Summary Card (Mobile Parity: Orange Theme) */}
-            <div className="bg-orange-50 rounded-[2.5rem] p-8 border border-orange-100 flex items-center justify-between">
-                <div className="flex items-center gap-6">
-                    <div className="w-16 h-16 rounded-2xl bg-orange-100 flex items-center justify-center text-orange-600">
-                        <IndianRupee size={32} />
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Total Labour Spent</p>
-                        <h2 className="text-3xl font-black text-orange-900">{formatCurrency(totalLabourSpent)}</h2>
+    const groupToWeeks = (recordList) => {
+        const weeks = {};
+        recordList.forEach(r => {
+            const date = r.date.toDate ? r.date.toDate() : new Date(r.date);
+            const d = new Date(date);
+            const day = d.getDay() || 7; // Get current day number, converting Sun. to 7
+            d.setHours(-24 * (day - 1)); // Get Monday
+            d.setHours(0, 0, 0, 0);
+            const weekKey = d.toISOString();
+            if (!weeks[weekKey]) weeks[weekKey] = [];
+            weeks[weekKey].push(r);
+        });
+        return Object.keys(weeks).sort((a, b) => new Date(b) - new Date(a)).map(key => ({
+            weekStart: new Date(key),
+            weekEnd: new Date(new Date(key).getTime() + 6 * 24 * 60 * 60 * 1000),
+            records: weeks[key]
+        }));
+    };
+
+    const weeklyGroups = filterDate ? [] : groupToWeeks(records);
+
+    if (loading) return <div className="p-10 text-center text-slate-400">Loading Attendance...</div>;
+
+    const renderDayCard = (r) => {
+        const rTotals = calculateTotals([r]);
+        return (
+            <div key={r.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm mb-3 overflow-hidden group">
+                <div className="p-4">
+                    <div className="flex justify-between items-center mb-3">
+                        <div className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm">
+                            {formatDate(r.date)}
+                        </div>
+                        <div className="flex items-center gap-3">
+                            {rTotals.cost > 0 && <span className="font-bold text-emerald-600 text-sm">₹{formatCurrency(rTotals.cost)}</span>}
+                            <button onClick={() => openAdd(r)} className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors">
+                                <Edit2 size={16} />
+                            </button>
+                            <button onClick={() => handleDelete(r.id)} className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors">
+                                <Trash2 size={16} />
+                            </button>
+                        </div>
                     </div>
                 </div>
-                <div className="hidden md:flex items-center gap-1 bg-white border border-orange-100 rounded-xl p-1 shadow-sm">
-                    <select
-                        value={exportMode}
-                        onChange={(e) => setExportMode(e.target.value)}
-                        className="text-xs py-1 px-2 rounded-lg bg-transparent border-none outline-none font-bold text-orange-900 cursor-pointer"
-                    >
-                        <option value="combined">Combined Data</option>
-                        <option value="tasks">Task Management</option>
-                        <option value="payments">Weekly Payments</option>
-                    </select>
-                    <div className="w-px h-4 bg-orange-200 mx-1"></div>
-                    <button
-                        onClick={() => generateLabourPDF(project, tasks, payments, exportMode)}
-                        className="p-1.5 bg-white rounded-lg text-rose-500 hover:bg-orange-50 transition-all"
-                        title="Export PDF Report"
-                    >
-                        <FileText size={18} />
-                    </button>
-                    <button
-                        onClick={() => generateLabourCSV(project, tasks, payments, exportMode)}
-                        className="p-1.5 bg-white rounded-lg text-emerald-600 hover:bg-orange-50 transition-all"
-                        title="Export CSV Report"
-                    >
-                        <Layout size={18} />
-                    </button>
+                <div className="px-4 pb-4">
+                    <div className="flex flex-wrap gap-2">
+                        {roles.map(role => {
+                            const c = r[role.countKey] || 0;
+                            const rate = r[role.rateKey] || 0;
+                            if (c > 0) {
+                                return (
+                                    <div key={role.key} className="bg-orange-50 border border-orange-200 text-orange-800 px-2.5 py-1 rounded-md text-[11px] font-bold flex items-center gap-1.5 shadow-sm">
+                                        <Users size={12} className="text-orange-600" />
+                                        <span>
+                                            {role.title}: {c} {rate > 0 && `– ₹${formatCurrency(rate)}`}
+                                        </span>
+                                    </div>
+                                );
+                            }
+                            return null;
+                        })}
+                        {(r.customEntered || 0) > 0 && (
+                            <div className="bg-orange-50 border border-orange-200 text-orange-800 px-2.5 py-1 rounded-md text-[11px] font-bold flex items-center gap-1.5 shadow-sm">
+                                <Star size={12} className="text-orange-500" />
+                                <span>
+                                    {r.customRoleName || 'Custom'}: {r.customEntered} {(r.customEnteredRate || 0) > 0 && `– ₹${formatCurrency(r.customEnteredRate)}`}
+                                </span>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
+        );
+    };
 
-            {/* Task Management Section */}
-            <section className="space-y-6">
-                <div className="flex justify-between items-center px-2">
-                    <h3 className="text-xl font-black text-slate-800 tracking-tight">Task Management</h3>
-                    <button
-                        onClick={() => {
-                            setEditTask(null);
-                            setIsAddTaskOpen(true);
-                        }}
-                        className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-all flex items-center gap-2 px-4 text-xs font-black uppercase tracking-widest"
-                    >
-                        <Plus size={16} /> Add Task
-                    </button>
+    return (
+        <div className="space-y-6 pb-20 relative">
+
+            {/* Filter Banner */}
+            {filterDate && (
+                <div className="flex items-center justify-between bg-blue-50 border border-blue-100 rounded-2xl p-4">
+                    <div className="flex items-center gap-3">
+                        <div className="bg-blue-600 text-white rounded-xl px-4 py-2 flex items-center gap-2 cursor-pointer shadow-md text-sm font-bold" onClick={() => {
+                            const input = document.createElement('input');
+                            input.type = 'date';
+                            input.onchange = (e) => setFilterDate(new Date(e.target.value));
+                            input.click();
+                        }}>
+                            <CalendarDays size={16} />
+                            {new Date(filterDate).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}
+                        </div>
+                        <button onClick={() => setFilterDate(null)} className="p-2 bg-slate-200 text-slate-600 rounded-full hover:bg-slate-300">
+                            <X size={14} />
+                        </button>
+                    </div>
+                    <span className="text-xs text-slate-400 font-bold uppercase tracking-widest hidden sm:block">Filtered View</span>
                 </div>
+            )}
 
-                {tasks.length === 0 ? (
-                    <div className="p-16 text-center bg-slate-50 rounded-[3rem] border border-dashed border-slate-200">
-                        <Hammer size={48} className="mx-auto text-slate-200 mb-4" />
-                        <p className="text-slate-400 font-bold">No tasks added yet.</p>
+            {/* Summary Card */}
+            {!filterDate && (
+                <div className="bg-blue-50/80 rounded-3xl border border-blue-100 p-6 flex flex-col justify-between shadow-sm relative overflow-hidden">
+                    <div className="flex items-start justify-between mb-4">
+                        <h3 className="text-xl font-black text-blue-900">Attendance Register</h3>
+                        <div className="flex gap-1 items-center z-10">
+                            {records.length > 0 && (
+                                <>
+                                    <button onClick={() => generateAttendanceCSV(project, records)} className="p-2 bg-white/50 hover:bg-white text-emerald-600 rounded-xl transition-all shadow-sm" title="Export Excel">
+                                        <Layout size={18} />
+                                    </button>
+                                    <button onClick={() => generateAttendancePDF(project, records)} className="p-2 bg-white/50 hover:bg-white text-rose-500 rounded-xl transition-all shadow-sm mx-1" title="Export PDF">
+                                        <FileText size={18} />
+                                    </button>
+                                </>
+                            )}
+                            <button onClick={() => {
+                                const input = document.createElement('input');
+                                input.type = 'date';
+                                input.onchange = (e) => setFilterDate(new Date(e.target.value));
+                                input.click();
+                            }} className="p-2 bg-white/50 hover:bg-white text-slate-600 rounded-xl transition-all shadow-sm" title="Filter Date">
+                                <CalendarIcon size={18} />
+                            </button>
+                            <button onClick={() => openAdd()} className="p-2 bg-white/50 hover:bg-white text-blue-600 rounded-xl transition-all shadow-sm ml-1" title="Add Attendance">
+                                <Plus size={18} />
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-3">
+                        <div className="bg-blue-100/50 text-blue-800 px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 border border-blue-200/50">
+                            <CalendarIcon size={14} /> {totalDays} Days
+                        </div>
+                        <div className="bg-purple-100/50 text-purple-800 px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 border border-purple-200/50">
+                            <Users size={14} /> {totalWorkerDays} Worker-Days
+                        </div>
+                        {totalCost > 0 && (
+                            <div className="bg-emerald-100/50 text-emerald-800 px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 border border-emerald-200/50">
+                                <IndianRupee size={14} /> ₹{formatCurrency(totalCost)}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Content Body */}
+            {filterDate ? (
+                // Filtered List
+                <div className="space-y-4">
+                    {filteredRecords.length === 0 ? (
+                        <div className="py-20 text-center flex flex-col items-center">
+                            <CalendarIcon size={48} className="text-slate-200 mb-4" />
+                            <p className="text-slate-400 font-bold mb-4">No attendance on {new Date(filterDate).toLocaleDateString('en-GB')}</p>
+                            <button onClick={() => openAdd(null, filterDate)} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-blue-700 shadow-lg">
+                                <Plus size={16} /> Add for this day
+                            </button>
+                        </div>
+                    ) : (
+                        filteredRecords.map(r => renderDayCard(r))
+                    )}
+                </div>
+            ) : (
+                // Weekly List
+                records.length === 0 ? (
+                    <div className="py-20 text-center flex flex-col items-center">
+                        <ClipboardList size={64} className="text-slate-200 mb-4" />
+                        <p className="text-slate-500 font-bold text-lg mb-2">No attendance recorded yet.</p>
+                        <button onClick={() => openAdd()} className="bg-blue-50 text-blue-600 px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-blue-100 mt-4 transition-colors">
+                            <Plus size={16} /> Add First Entry
+                        </button>
                     </div>
                 ) : (
                     <div className="space-y-8">
-                        {ongoingTasks.length > 0 && <TaskGroup title="Ongoing Tasks" color="orange" tasks={ongoingTasks} onUpdate={handleProgressUpdate} onEdit={(t) => { setEditTask(t); setIsAddTaskOpen(true); }} onDelete={handleDeleteTask} formatDate={formatDate} />}
-                        {pendingTasks.length > 0 && <TaskGroup title="Pending Tasks" color="slate" tasks={pendingTasks} onUpdate={handleProgressUpdate} onEdit={(t) => { setEditTask(t); setIsAddTaskOpen(true); }} onDelete={handleDeleteTask} formatDate={formatDate} />}
-                        {doneTasks.length > 0 && <TaskGroup title="Completed / Done" color="emerald" tasks={doneTasks} onUpdate={handleProgressUpdate} onEdit={(t) => { setEditTask(t); setIsAddTaskOpen(true); }} onDelete={handleDeleteTask} formatDate={formatDate} />}
-                    </div>
-                )}
-            </section>
+                        {weeklyGroups.map((group, idx) => {
+                            const wTotals = calculateTotals(group.records);
+                            const wStartStr = group.weekStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+                            const wEndStr = group.weekEnd.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
-            {/* Weekly Payments Section */}
-            <section className="space-y-6">
-                <div className="flex justify-between items-center px-2">
-                    <h3 className="text-xl font-black text-slate-800 tracking-tight">Weekly Payments</h3>
-                    <button
-                        onClick={() => {
-                            setEditPayment(null);
-                            setIsAddPaymentOpen(true);
-                        }}
-                        className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-all flex items-center gap-2 px-4 text-xs font-black uppercase tracking-widest"
-                    >
-                        <Plus size={16} /> Add Payment
-                    </button>
-                </div>
-
-                <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
-                    {payments.length === 0 ? (
-                        <div className="p-12 text-center text-slate-400 font-bold italic">No weekly payments recorded.</div>
-                    ) : (
-                        <div className="divide-y divide-slate-50">
-                            {payments.slice(0, 5).map(payment => (
-                                <div key={payment.id} className="p-6 flex items-center gap-4 hover:bg-slate-50 transition-all">
-                                    <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
-                                        <Users size={20} />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h4 className="font-black text-slate-800 truncate">{payment.laborerName}</h4>
-                                        <p className="text-[10px] font-bold text-slate-400">
-                                            {formatDate(payment.periodStart)} – {formatDate(payment.periodEnd)}
-                                        </p>
-                                    </div>
-                                    <div className="text-right flex flex-col items-end gap-2">
-                                        <div>
-                                            <p className="text-lg font-black text-rose-500">{formatCurrency(payment.amount)}</p>
-                                            <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Amount Paid</p>
-                                        </div>
-                                        <div className="flex items-center gap-2 opacity-0 group-[&:hover]:opacity-100 transition-opacity">
-                                            <button
-                                                onClick={() => {
-                                                    setEditPayment(payment);
-                                                    setIsAddPaymentOpen(true);
-                                                }}
-                                                className="p-1.5 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-all"
-                                            >
-                                                <Edit2 size={16} />
+                            return (
+                                <div key={idx} className="space-y-4">
+                                    <div className="flex flex-wrap items-center gap-3">
+                                        <div className="w-1.5 h-6 bg-blue-600 rounded-full" />
+                                        <h4 className="font-bold text-slate-800 flex-1">{wStartStr} – {wEndStr}</h4>
+                                        <div className="flex items-center gap-2">
+                                            {wTotals.workers > 0 && (
+                                                <div className="bg-purple-50 border border-purple-100 text-purple-700 px-2 py-1 rounded-lg text-[10px] font-bold">
+                                                    {wTotals.workers} workers
+                                                </div>
+                                            )}
+                                            {wTotals.cost > 0 && (
+                                                <div className="bg-emerald-50 border border-emerald-100 text-emerald-800 px-2 py-1 rounded-lg text-[10px] font-bold">
+                                                    ₹{formatCurrency(wTotals.cost)}
+                                                </div>
+                                            )}
+                                            <button onClick={() => generateAttendanceCSV(project, group.records, true, group.weekStart, group.weekEnd)} className="text-emerald-500 hover:bg-emerald-50 p-1.5 rounded transition-all">
+                                                <Layout size={18} />
                                             </button>
-                                            <button
-                                                onClick={() => handleDeletePayment(payment.id)}
-                                                className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
-                                            >
-                                                <Trash2 size={16} />
+                                            <button onClick={() => generateAttendancePDF(project, group.records, true, group.weekStart, group.weekEnd)} className="text-rose-500 hover:bg-rose-50 p-1.5 rounded transition-all">
+                                                <FileText size={18} />
                                             </button>
                                         </div>
+                                    </div>
+                                    <div>
+                                        {group.records.map(r => renderDayCard(r))}
                                     </div>
                                 </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </section>
-
-            {/* Dialogs */}
-            <AddLabourTaskDialog
-                isOpen={isAddTaskOpen}
-                onClose={() => {
-                    setIsAddTaskOpen(false);
-                    setEditTask(null);
-                }}
-                projectId={projectId}
-                initialData={editTask}
-            />
-            <AddLabourPaymentDialog
-                isOpen={isAddPaymentOpen}
-                onClose={() => {
-                    setIsAddPaymentOpen(false);
-                    setEditPayment(null);
-                }}
-                projectId={projectId}
-                initialData={editPayment}
-            />
-        </div>
-    );
-}
-
-function TaskGroup({ title, color, tasks, onUpdate, onDelete, onEdit, formatDate }) {
-    const colorClasses = {
-        orange: "bg-orange-500 text-orange-500",
-        slate: "bg-slate-300 text-slate-400",
-        emerald: "bg-emerald-500 text-emerald-500"
-    };
-
-    return (
-        <div className="space-y-4">
-            <div className="flex items-center gap-3 px-2">
-                <div className={`w-1 h-4 rounded-full ${colorClasses[color].split(' ')[0]}`} />
-                <h4 className={`text-xs font-black uppercase tracking-widest ${colorClasses[color].split(' ')[1]}`}>{title}</h4>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {tasks.map(task => (
-                    <div key={task.id} className="bg-white p-6 rounded-[2.2rem] border border-slate-100 shadow-sm hover:shadow-md transition-all relative group">
-                        <div className="flex justify-between items-start mb-4">
-                            <div>
-                                <h5 className="font-black text-slate-800 text-lg">{task.name}</h5>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                    {task.laborerCount} Laborers • {task.role}
-                                </p>
-                            </div>
-                            <div className="flex items-center gap-1">
-                                <button
-                                    onClick={() => onEdit(task)}
-                                    className="p-2 text-slate-200 hover:text-blue-500 hover:bg-blue-50 bg-white rounded-xl transition-all"
-                                >
-                                    <Edit2 size={14} />
-                                </button>
-                                <button
-                                    onClick={() => onDelete(task.id)}
-                                    className="p-2 text-slate-200 hover:text-rose-500 hover:bg-rose-50 bg-white rounded-xl transition-all"
-                                >
-                                    <Trash2 size={14} />
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="space-y-3">
-                            <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                <span>Completion</span>
-                                <span>{Math.round((task.completionPercentage || 0) * 100)}%</span>
-                            </div>
-                            <input
-                                type="range"
-                                min="0" max="100"
-                                value={(task.completionPercentage || 0) * 100}
-                                onChange={(e) => onUpdate(task.id, e.target.value)}
-                                className={`w-full h-1.5 rounded-full appearance-none cursor-pointer ${color === 'emerald' ? 'accent-emerald-500' : 'accent-blue-600'} bg-slate-100`}
-                            />
-                        </div>
-
-                        <div className="mt-6 pt-4 border-t border-slate-50 flex items-center gap-4 text-slate-300 group-hover:text-slate-400 transition-colors">
-                            <div className="flex items-center gap-1.5">
-                                <Clock size={12} />
-                                <span className="text-[10px] font-bold">Started {formatDate(task.startDate)}</span>
-                            </div>
-                            <div className="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded-md">
-                                <span className="text-[10px] font-black uppercase text-slate-500">{task.durationInDays || 0} Days</span>
-                            </div>
-                        </div>
+                            );
+                        })}
                     </div>
-                ))}
-            </div>
+                )
+            )}
+
+            <AddAttendanceDialog
+                isOpen={isAddOpen}
+                onClose={() => setIsAddOpen(false)}
+                projectId={projectId}
+                existingRecord={editRecord}
+            />
         </div>
     );
 }

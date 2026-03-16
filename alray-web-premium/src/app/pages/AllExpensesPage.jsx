@@ -13,6 +13,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { expenseService } from '../services/expenseService';
 import { projectService } from '../services/projectService';
+import { payableService } from '../services/payableService';
 import TransactionDetailsDialog from '../components/projects/TransactionDetailsDialog';
 import AddExpenseDialog from '../components/projects/AddExpenseDialog';
 
@@ -34,6 +35,7 @@ export default function AllExpensesPage() {
     const { currentUser } = useAuth();
     const [entries, setEntries] = useState([]);
     const [projects, setProjects] = useState([]);
+    const [payables, setPayables] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
@@ -56,22 +58,12 @@ export default function AllExpensesPage() {
         setLoading(true);
         setError(null);
 
-        let unsub1, unsub2;
+        let unsub1, unsub2, unsub3;
         try {
-            // Fetch all entries (expenses + revenue)
-            // Assuming we have a service method to get all entries, or we subscribe to expenses
-            // For feature parity, we need all entries including revenue. 
-            // In Flutter, these are all `ConstructionEntry` items in the project.
-            // Since we might not have a global 'all entries' method in React yet that includes revenue precisely,
-            // we'll fetch projects and aggregate their entries to exactly match the Flutter app's logic.
-
-            unsub1 = projectService.subscribeToProjects(currentUser.uid, (data) => {
-                setProjects(data);
-
-                // Aggregate all entries across all projects
-                const allEntries = data.flatMap(p => p.entries || []);
-                setEntries(allEntries);
-
+            unsub1 = projectService.subscribeToProjects(currentUser.uid, setProjects);
+            unsub2 = expenseService.subscribeToAllExpenses(currentUser.uid, setEntries);
+            unsub3 = payableService.subscribeToAllPayables(currentUser.uid, (data) => {
+                setPayables(data);
                 setLoading(false);
             });
 
@@ -84,6 +76,7 @@ export default function AllExpensesPage() {
         return () => {
             if (unsub1) unsub1();
             if (unsub2) unsub2();
+            if (unsub3) unsub3();
         };
     };
 
@@ -180,25 +173,21 @@ export default function AllExpensesPage() {
 
         // 3. Build set of pending expense IDs
         const pendingExpenseIds = new Set();
-        projects.forEach(project => {
-            const payables = project.payables || [];
-            const pEntries = project.entries || [];
+        
+        const pendingPayableIds = new Set(
+            payables.filter(p => {
+                const paid = entries
+                    .filter(e => e.payableId === p.id)
+                    .reduce((sum, e) => sum + (e.amount || 0), 0);
+                return ((p.totalAmount || p.amount || 0) - paid) > 0;
+            }).map(p => p.id)
+        );
 
-            const pendingPayableIds = new Set(
-                payables.filter(p => {
-                    const paid = pEntries
-                        .filter(e => e.payableId === p.id)
-                        .reduce((sum, e) => sum + (e.amount || 0), 0);
-                    return (p.totalAmount - paid) > 0;
-                }).map(p => p.id)
-            );
-
-            pEntries.forEach(e => {
-                if ((e.transactionType === 'expense' || !e.transactionType) &&
-                    e.payableId && pendingPayableIds.has(e.payableId)) {
-                    pendingExpenseIds.add(e.id);
-                }
-            });
+        entries.forEach(e => {
+            if ((e.transactionType === 'expense' || !e.transactionType) &&
+                e.payableId && pendingPayableIds.has(e.payableId)) {
+                pendingExpenseIds.add(e.id);
+            }
         });
 
         // 4. Filter by Payment Status
@@ -214,7 +203,7 @@ export default function AllExpensesPage() {
             totals: { revenue: totalRevenue, workers: totalWorkers, material: totalMaterial, custom: totalCustom }
         };
 
-    }, [entries, projects, selectedProjectId, selectedFilter, paymentFilter, searchQuery]);
+    }, [entries, projects, payables, selectedProjectId, selectedFilter, paymentFilter, searchQuery]);
 
     const { filteredList, pendingExpenseIds, totals } = processedData;
 

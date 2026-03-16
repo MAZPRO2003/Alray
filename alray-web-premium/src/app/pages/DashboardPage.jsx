@@ -5,24 +5,29 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { projectService } from '../services/projectService';
 import { contactService } from '../services/contactService';
+import { expenseService } from '../services/expenseService';
+import { payableService } from '../services/payableService';
 
 export default function DashboardPage() {
     const { currentUser } = useAuth();
     const navigate = useNavigate();
     const [projects, setProjects] = useState([]);
     const [contacts, setContacts] = useState([]);
+    const [entries, setEntries] = useState([]);
+    const [payables, setPayables] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         if (!currentUser) return;
         const uid = currentUser.uid;
-        // projectService now fetches all entries embedded inside projects if we aggregate them,
-        // or we can aggregate all entries from all projects.
+        // Fetch projects, contacts, entries, and payables separately
         const unsub1 = projectService.subscribeToProjects(uid, setProjects);
         const unsub2 = contactService.subscribeToContacts(uid, setContacts);
+        const unsub3 = expenseService.subscribeToAllExpenses(uid, setEntries);
+        const unsub4 = payableService.subscribeToAllPayables(uid, setPayables);
 
         setLoading(false);
-        return () => { unsub1(); unsub2(); };
+        return () => { unsub1(); unsub2(); unsub3(); unsub4(); };
     }, [currentUser]);
 
     const formatCurrency = (n) => {
@@ -32,10 +37,11 @@ export default function DashboardPage() {
         return `₹${Math.round(n)}`;
     };
 
-    // Aggregate all entries
-    const allEntries = projects.flatMap(p =>
-        (p.entries || []).map(e => ({ ...e, projectName: p.name }))
-    );
+    // Add project names to entries
+    const allEntries = entries.map(e => {
+        const p = projects.find(proj => proj.id === e.projectId);
+        return { ...e, projectName: p ? p.name : 'General' };
+    });
 
     // Sort all entries by date (newest first)
     allEntries.sort((a, b) => {
@@ -61,13 +67,9 @@ export default function DashboardPage() {
     const activeProjects = projects.filter(p => !p.isCompleted);
 
     // Calculate total pending payables across all projects
-    const totalPending = projects.reduce((sum, p) => {
-        const payables = p.payables || [];
-        const entries = p.entries || [];
-        return sum + payables.reduce((pSum, payable) => {
-            const paid = entries.filter(e => e.payableId === payable.id).reduce((eSum, e) => eSum + (e.amount || 0), 0);
-            return pSum + Math.max(0, (payable.totalAmount || 0) - paid);
-        }, 0);
+    const totalPending = payables.reduce((sum, payable) => {
+        const paid = entries.filter(e => e.payableId === payable.id).reduce((eSum, e) => eSum + (e.amount || 0), 0);
+        return sum + Math.max(0, (payable.totalAmount || payable.amount || 0) - paid);
     }, 0);
 
     const recentEntries = allEntries.slice(0, 12);

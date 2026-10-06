@@ -6,6 +6,8 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
 import 'package:alray_app/models/construction_entry.dart';
+import 'package:printing/printing.dart';
+import 'package:flutter/services.dart' show rootBundle, ByteData, Uint8List;
 
 class ReceiptGenerator {
   static Future<void> generateAndShare({
@@ -13,6 +15,12 @@ class ReceiptGenerator {
     required ConstructionEntry entry,
   }) async {
     try {
+      final rupeeFont = await PdfGoogleFonts.robotoRegular();
+      
+      final ByteData imageByteData = await rootBundle.load('assets/signature.png');
+      final Uint8List imageBytes = imageByteData.buffer.asUint8List();
+      final signatureImage = pw.MemoryImage(imageBytes);
+
       final pdf = pw.Document();
 
       final dateStr = DateFormat('dd/MM/yyyy').format(entry.date);
@@ -273,8 +281,8 @@ class ReceiptGenerator {
                         child: pw.Text(
                           '₹${NumberFormat("#,##,###.00", "en_IN").format(entry.amount)}/-',
                           style: pw.TextStyle(
+                            font: rupeeFont,
                             fontSize: 18,
-                            fontWeight: pw.FontWeight.bold,
                           ),
                         ),
                       ),
@@ -288,7 +296,14 @@ class ReceiptGenerator {
                               color: PdfColors.blue900,
                             ),
                           ),
-                          pw.SizedBox(height: 40),
+                          pw.SizedBox(height: 5),
+                          pw.Image(
+                            signatureImage,
+                            width: 80,
+                            height: 40,
+                            fit: pw.BoxFit.contain,
+                          ),
+                          pw.SizedBox(height: 5),
                           pw.Text(
                             'H. Abdul Kader',
                             style: pw.TextStyle(
